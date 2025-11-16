@@ -1,0 +1,13 @@
+{
+  "extends": ["../.eslintrc.json", "plugin:react-hooks/recommended", "plugin:react/recommended"],
+  "plugins": ["react-refresh"],
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  },
+  "rules": {
+    "react-refresh/only-export-components": ["warn", { "allowConstantExport": true }],
+    "react/react-in-jsx-scope": "off"
+  }
+}
