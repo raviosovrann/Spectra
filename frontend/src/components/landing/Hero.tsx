@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { ArrowRight, TrendingUp, Zap, Sparkles } from 'lucide-react'
+import { ArrowRight, TrendingUp, Zap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 export default function Hero() {
@@ -176,8 +176,33 @@ export default function Hero() {
                 <div className="text-4xl font-bold text-white">$124,582.00</div>
 
                 {/* Mock Chart */}
-                <div className="h-48 rounded-xl bg-dark-950/50 p-4">
-                  <svg className="h-full w-full" viewBox="0 0 400 150">
+                <div className="h-48 rounded-xl bg-dark-950/50 p-4 relative overflow-hidden">
+                  {/* Floating crypto icons in chart */}
+                  {[
+                    { icon: '₿', x: '15%', y: '30%', delay: 0 },
+                    { icon: 'Ξ', x: '45%', y: '50%', delay: 0.3 },
+                    { icon: '◎', x: '75%', y: '25%', delay: 0.6 },
+                  ].map((item, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ 
+                        opacity: [0.1, 0.2, 0.1],
+                        scale: [1, 1.2, 1],
+                      }}
+                      transition={{
+                        delay: 0.8 + item.delay,
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      className="absolute text-3xl text-primary-400/20 pointer-events-none"
+                      style={{ left: item.x, top: item.y }}
+                    >
+                      {item.icon}
+                    </motion.div>
+                  ))}
+                  <svg className="h-full w-full relative z-10" viewBox="0 0 400 150">
                     <defs>
                       <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" stopColor="rgb(14, 165, 233)" stopOpacity="0.3" />

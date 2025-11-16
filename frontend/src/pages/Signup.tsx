@@ -14,10 +14,7 @@ export default function Signup() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement authentication
-    // eslint-disable-next-line no-console
-    console.log('Signup:', formData)
-    // For now, just navigate to dashboard
+    // No authentication - directly navigate to dashboard
     navigate('/dashboard')
   }
 

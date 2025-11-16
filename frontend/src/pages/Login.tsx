@@ -10,10 +10,7 @@ export default function Login() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement authentication
-    // eslint-disable-next-line no-console
-    console.log('Login:', { email, password })
-    // For now, just navigate to dashboard
+    // No authentication - directly navigate to dashboard
     navigate('/dashboard')
   }
 
@@ -135,7 +132,7 @@ export default function Login() {
 
           {/* Sign Up Link */}
           <p className="mt-6 text-center text-sm text-dark-400">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <button
               onClick={() => navigate('/signup')}
               className="text-primary-400 hover:text-primary-300 font-semibold transition-colors"
