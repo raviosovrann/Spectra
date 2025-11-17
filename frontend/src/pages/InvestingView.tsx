@@ -7,7 +7,6 @@ type ViewMode = 'change' | 'volume' | 'marketCap'
 
 export default function InvestingView() {
   const [viewMode, setViewMode] = useState<ViewMode>('change')
-  const [selectedCrypto, setSelectedCrypto] = useState<string | null>(null)
 
   const getColorForChange = (change: number) => {
     if (change > 5) return 'from-success-600 to-success-500'
@@ -145,7 +144,6 @@ export default function InvestingView() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.05 * index }}
-            onClick={() => setSelectedCrypto(crypto.symbol)}
             className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${getColorForChange(
               crypto.change24h
             )} p-6 cursor-pointer hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-2xl`}

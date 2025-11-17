@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Zap, TrendingUp, DollarSign, Activity } from 'lucide-react'
+import { Sparkles, TrendingUp, DollarSign, Activity } from 'lucide-react'
 
 export default function Dashboard() {
   return (
@@ -13,7 +13,7 @@ export default function Dashboard() {
         >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/50">
-              <Zap className="h-7 w-7 text-white" />
+              <Sparkles className="h-7 w-7 text-white" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">Dashboard</h1>
@@ -87,7 +87,7 @@ export default function Dashboard() {
           className="rounded-3xl bg-gradient-to-br from-primary-500/10 to-success-500/10 p-12 text-center border border-primary-500/20"
         >
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 mb-4">
-            <Zap className="h-8 w-8 text-white" />
+            <Sparkles className="h-8 w-8 text-white" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-4">Dashboard Coming Soon</h2>
           <p className="text-lg text-dark-300 max-w-2xl mx-auto">

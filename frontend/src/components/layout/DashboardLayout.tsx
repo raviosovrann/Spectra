@@ -1,61 +1,47 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import {
-  Zap,
-  Search,
-  Sun,
-  Moon,
-  TrendingUp,
-  DollarSign,
-  PieChart,
-  Lightbulb,
-  Bell,
-  History,
-  Menu,
-  X,
-} from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { Sun, Moon, Menu, X } from 'lucide-react'
+import { useState } from 'react'
+import { useUserStore } from '../../stores/userStore'
+
+// Page icons
+import investingIcon from '../../assets/investing-page.svg'
+import tradingIcon from '../../assets/trading-page.svg'
+import portfolioIcon from '../../assets/portfolio-page.svg'
+import insightsIcon from '../../assets/insights-page.svg'
+import alertsIcon from '../../assets/alerts-page.svg'
+import historyIcon from '../../assets/history-page.svg'
 
 const tabs = [
-  { id: 'investing', label: 'Investing', path: '/dashboard', icon: TrendingUp },
-  { id: 'trading', label: 'Trading', path: '/dashboard/trading', icon: DollarSign },
-  { id: 'portfolio', label: 'Portfolio', path: '/dashboard/portfolio', icon: PieChart },
-  { id: 'insights', label: 'Insights', path: '/dashboard/insights', icon: Lightbulb },
-  { id: 'alerts', label: 'Alerts', path: '/dashboard/alerts', icon: Bell },
-  { id: 'history', label: 'History', path: '/dashboard/history', icon: History },
+  { id: 'investing', label: 'Investing', path: '/dashboard', iconSrc: investingIcon },
+  { id: 'trading', label: 'Trading', path: '/dashboard/trading', iconSrc: tradingIcon },
+  { id: 'portfolio', label: 'Portfolio', path: '/dashboard/portfolio', iconSrc: portfolioIcon },
+  { id: 'insights', label: 'Insights', path: '/dashboard/insights', iconSrc: insightsIcon },
+  { id: 'alerts', label: 'Alerts', path: '/dashboard/alerts', iconSrc: alertsIcon },
+  { id: 'history', label: 'History', path: '/dashboard/history', iconSrc: historyIcon },
 ]
 
 export default function DashboardLayout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const { theme, setTheme } = useUserStore()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-
-  // Load theme from localStorage on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' | null
-    if (savedTheme) {
-      setTheme(savedTheme)
-      document.documentElement.classList.toggle('dark', savedTheme === 'dark')
-    }
-  }, [])
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
     setTheme(newTheme)
-    localStorage.setItem('theme', newTheme)
-    document.documentElement.classList.toggle('dark', newTheme === 'dark')
   }
 
   const getActiveTab = () => {
     const path = location.pathname
     if (path === '/dashboard') return 'investing'
+    if (path === '/dashboard/profile') return null // No active tab on profile page
     const tab = tabs.find((t) => t.path === path)
     return tab?.id || 'investing'
   }
 
   const activeTab = getActiveTab()
+  const isProfilePage = location.pathname === '/dashboard/profile'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950">
@@ -64,32 +50,21 @@ export default function DashboardLayout() {
         <div className="container mx-auto px-4">
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
-            <div className="flex items-center gap-8">
-              <div
-                className="flex cursor-pointer items-center gap-2"
-                onClick={() => navigate('/dashboard')}
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/50">
-                  <Zap className="h-6 w-6 text-white" />
-                </div>
-                <span className="text-xl font-bold bg-gradient-to-r from-white to-primary-200 bg-clip-text text-transparent">
-                  Spectra
-                </span>
+            <div
+              className="flex cursor-pointer items-center gap-2"
+              onClick={() => navigate('/dashboard')}
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/50">
+                <svg className="h-6 w-6 text-white" viewBox="0 0 46 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M0 33L4.60606 25H12.2448C17.2569 25 21.4947 28.7103 22.1571 33.6784L23 40H13L11.5585 36.6365C10.613 34.4304 8.44379 33 6.04362 33H0Z" fill="currentColor" />
+                  <path d="M46 33L41.3939 25H33.7552C28.7431 25 24.5053 28.7103 23.8429 33.6784L23 40H33L34.4415 36.6365C35.387 34.4304 37.5562 33 39.9564 33H46Z" fill="currentColor" />
+                  <path d="M4.60606 25L18.9999 0H23L22.6032 9.52405C22.2608 17.7406 15.7455 24.3596 7.53537 24.8316L4.60606 25Z" fill="currentColor" />
+                  <path d="M41.3939 25L27.0001 0H23L23.3968 9.52405C23.7392 17.7406 30.2545 24.3596 38.4646 24.8316L41.3939 25Z" fill="currentColor" />
+                </svg>
               </div>
-
-              {/* Desktop Search */}
-              <div className="hidden md:block">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-dark-500" />
-                  <input
-                    type="text"
-                    placeholder="Search cryptocurrencies..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-64 rounded-xl bg-dark-800 border border-dark-700 pl-10 pr-4 py-2 text-sm text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
-                  />
-                </div>
-              </div>
+              <span className="text-xl font-bold bg-gradient-to-r from-white to-primary-200 bg-clip-text text-transparent">
+                Spectra
+              </span>
             </div>
 
             {/* Right Side Actions */}
@@ -119,40 +94,45 @@ export default function DashboardLayout() {
               </button>
 
               {/* Account Menu (Desktop) */}
-              <div className="hidden md:flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white font-semibold cursor-pointer hover:scale-105 transition-transform">
+              <button
+                onClick={() => navigate('/dashboard/profile')}
+                className="hidden md:flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white font-semibold cursor-pointer hover:scale-105 transition-transform"
+                aria-label="View Profile"
+              >
                 U
-              </div>
+              </button>
             </div>
           </div>
 
-          {/* Desktop Tab Navigation */}
-          <nav className="hidden md:flex gap-2 -mb-px">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => navigate(tab.path)}
-                  className={`relative flex items-center gap-3 px-6 py-4 text-base font-semibold transition-all rounded-t-xl ${
-                    isActive
-                      ? 'text-primary-400 bg-dark-800/50'
-                      : 'text-dark-400 hover:text-dark-200 hover:bg-dark-800/30'
-                  }`}
-                >
-                  <Icon className="h-5 w-5" strokeWidth={2.5} />
-                  <span>{tab.label}</span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTab"
-                      className="absolute bottom-0 left-0 right-0 h-1 bg-primary-500 rounded-t-sm"
-                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    />
-                  )}
-                </button>
-              )
-            })}
-          </nav>
+          {/* Desktop Tab Navigation - Hide on profile page */}
+          {!isProfilePage && (
+            <nav className="hidden md:flex gap-2 -mb-px">
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => navigate(tab.path)}
+                    className={`relative flex items-center gap-3 px-6 py-4 text-base font-semibold transition-all rounded-t-xl ${
+                      isActive
+                        ? 'text-primary-400 bg-dark-800/50'
+                        : 'text-dark-400 hover:text-dark-200 hover:bg-dark-800/30'
+                    }`}
+                  >
+                    <img src={tab.iconSrc} alt={`${tab.label} icon`} className="h-5 w-5 object-contain" />
+                    <span>{tab.label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute bottom-0 left-0 right-0 h-1 bg-primary-500 rounded-t-sm"
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                  </button>
+                )
+              })}
+            </nav>
+          )}
         </div>
       </header>
 
@@ -165,24 +145,9 @@ export default function DashboardLayout() {
           className="md:hidden fixed inset-x-0 top-16 z-40 border-b border-dark-800 bg-dark-900 shadow-xl"
         >
           <div className="container mx-auto px-4 py-4">
-            {/* Mobile Search */}
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-dark-500" />
-                <input
-                  type="text"
-                  placeholder="Search cryptocurrencies..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-10 pr-4 py-2 text-sm text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
-                />
-              </div>
-            </div>
-
             {/* Mobile Navigation */}
             <nav className="space-y-2">
               {tabs.map((tab) => {
-                const Icon = tab.icon
                 const isActive = activeTab === tab.id
                 return (
                   <button
@@ -197,13 +162,12 @@ export default function DashboardLayout() {
                         : 'text-dark-400 hover:bg-dark-800 hover:text-dark-200'
                     }`}
                   >
-                    <Icon className="h-6 w-6" strokeWidth={2.5} />
+                    <img src={tab.iconSrc} alt={`${tab.label} icon`} className="h-6 w-6 object-contain" />
                     <span>{tab.label}</span>
                   </button>
                 )
               })}
             </nav>
-
             {/* Mobile Connection Status */}
             <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-success-500/10 px-3 py-2 text-sm">
               <div className="h-2 w-2 rounded-full bg-success-400 animate-pulse" />
@@ -218,32 +182,33 @@ export default function DashboardLayout() {
         <Outlet />
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-dark-800 bg-dark-900/95 backdrop-blur-sm">
-        <div className="grid grid-cols-6 gap-1 px-2 py-3">
-          {tabs.map((tab) => {
-            const Icon = tab.icon
-            const isActive = activeTab === tab.id
-            return (
-              <button
-                key={tab.id}
-                onClick={() => navigate(tab.path)}
-                className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-xl transition-all ${
-                  isActive
-                    ? 'bg-primary-500/10 text-primary-400'
-                    : 'text-dark-400 active:bg-dark-800'
-                }`}
-              >
-                <Icon className="h-6 w-6" strokeWidth={2.5} />
-                <span className="text-xs font-semibold">{tab.label}</span>
-              </button>
-            )
-          })}
-        </div>
-      </nav>
+      {/* Mobile Bottom Navigation - Hide on profile page */}
+      {!isProfilePage && (
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-dark-800 bg-dark-900/95 backdrop-blur-sm">
+          <div className="grid grid-cols-6 gap-1 px-2 py-3">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => navigate(tab.path)}
+                  className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-xl transition-all ${
+                    isActive
+                      ? 'bg-primary-500/10 text-primary-400'
+                      : 'text-dark-400 active:bg-dark-800'
+                  }`}
+                >
+                  <img src={tab.iconSrc} alt={`${tab.label} icon`} className="h-6 w-6 object-contain" />
+                  <span className="text-xs font-semibold">{tab.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </nav>
+      )}
 
       {/* Bottom padding for mobile navigation */}
-      <div className="md:hidden h-24" />
+      {!isProfilePage && <div className="md:hidden h-24" />}
     </div>
   )
 }

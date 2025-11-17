@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, Activity, Zap, AlertCircle } from 'lucide-react'
+import { TrendingUp, TrendingDown, Activity, Sparkles, AlertCircle } from 'lucide-react'
 import { mockInsights, mockCryptos } from '../data/mockData'
 
 export default function InsightsView() {
@@ -49,7 +49,7 @@ export default function InsightsView() {
       >
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 animate-pulse">
-            <Zap className="h-6 w-6 text-white" />
+            <Sparkles className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-white mb-1">AI Engine Active</h3>

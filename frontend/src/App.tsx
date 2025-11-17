@@ -9,6 +9,7 @@ import PortfolioView from './pages/PortfolioView'
 import InsightsView from './pages/InsightsView'
 import AlertsView from './pages/AlertsView'
 import HistoryView from './pages/HistoryView'
+import ProfileView from './pages/ProfileView'
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="insights" element={<InsightsView />} />
           <Route path="alerts" element={<AlertsView />} />
           <Route path="history" element={<HistoryView />} />
+          <Route path="profile" element={<ProfileView />} />
         </Route>
       </Routes>
     </BrowserRouter>

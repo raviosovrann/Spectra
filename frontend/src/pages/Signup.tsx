@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Zap, Mail, Lock, User, ArrowRight, Github, Chrome, Check } from 'lucide-react'
+import { Mail, Lock, User, ArrowRight, Check } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -7,6 +7,7 @@ export default function Signup() {
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
     name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -45,7 +46,12 @@ export default function Signup() {
                 onClick={() => navigate('/')}
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/50">
-                  <Zap className="h-7 w-7 text-white" />
+                  <svg className="h-7 w-7 text-white" viewBox="0 0 46 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M0 33L4.60606 25H12.2448C17.2569 25 21.4947 28.7103 22.1571 33.6784L23 40H13L11.5585 36.6365C10.613 34.4304 8.44379 33 6.04362 33H0Z" fill="currentColor" />
+                    <path d="M46 33L41.3939 25H33.7552C28.7431 25 24.5053 28.7103 23.8429 33.6784L23 40H33L34.4415 36.6365C35.387 34.4304 37.5562 33 39.9564 33H46Z" fill="currentColor" />
+                    <path d="M4.60606 25L18.9999 0H23L22.6032 9.52405C22.2608 17.7406 15.7455 24.3596 7.53537 24.8316L4.60606 25Z" fill="currentColor" />
+                    <path d="M41.3939 25L27.0001 0H23L23.3968 9.52405C23.7392 17.7406 30.2545 24.3596 38.4646 24.8316L41.3939 25Z" fill="currentColor" />
+                  </svg>
                 </div>
                 <span className="text-3xl font-bold bg-gradient-to-r from-white to-primary-200 bg-clip-text text-transparent">
                   Spectra
@@ -110,7 +116,12 @@ export default function Signup() {
                 onClick={() => navigate('/')}
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/50">
-                  <Zap className="h-7 w-7 text-white" />
+                  <svg className="h-7 w-7 text-white" viewBox="0 0 46 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M0 33L4.60606 25H12.2448C17.2569 25 21.4947 28.7103 22.1571 33.6784L23 40H13L11.5585 36.6365C10.613 34.4304 8.44379 33 6.04362 33H0Z" fill="currentColor" />
+                    <path d="M46 33L41.3939 25H33.7552C28.7431 25 24.5053 28.7103 23.8429 33.6784L23 40H33L34.4415 36.6365C35.387 34.4304 37.5562 33 39.9564 33H46Z" fill="currentColor" />
+                    <path d="M4.60606 25L18.9999 0H23L22.6032 9.52405C22.2608 17.7406 15.7455 24.3596 7.53537 24.8316L4.60606 25Z" fill="currentColor" />
+                    <path d="M41.3939 25L27.0001 0H23L23.3968 9.52405C23.7392 17.7406 30.2545 24.3596 38.4646 24.8316L41.3939 25Z" fill="currentColor" />
+                  </svg>
                 </div>
                 <span className="text-3xl font-bold bg-gradient-to-r from-white to-primary-200 bg-clip-text text-transparent">
                   Spectra
@@ -122,30 +133,8 @@ export default function Signup() {
             <div className="relative rounded-3xl bg-dark-900 p-8 border border-dark-800 shadow-2xl">
               <h2 className="text-2xl font-bold text-white mb-6">Create Account</h2>
 
-              {/* Social Signup */}
-              <div className="mb-6 space-y-3">
-                <button className="w-full flex items-center justify-center gap-3 rounded-xl bg-dark-800 px-4 py-3 text-white hover:bg-dark-750 transition-colors border border-dark-700">
-                  <Chrome className="h-5 w-5" />
-                  <span className="font-medium">Continue with Google</span>
-                </button>
-                <button className="w-full flex items-center justify-center gap-3 rounded-xl bg-dark-800 px-4 py-3 text-white hover:bg-dark-750 transition-colors border border-dark-700">
-                  <Github className="h-5 w-5" />
-                  <span className="font-medium">Continue with GitHub</span>
-                </button>
-              </div>
-
-              {/* Divider */}
-              <div className="relative mb-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-dark-700"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-dark-900 text-dark-400">Or sign up with email</span>
-                </div>
-              </div>
-
               {/* Signup Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4 mt-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-dark-300 mb-2">
                     Full Name
@@ -164,6 +153,25 @@ export default function Signup() {
                     />
                   </div>
                 </div>
+
+                  <div>
+                    <label htmlFor="username" className="block text-sm font-medium text-dark-300 mb-2">
+                      Username
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-500" />
+                      <input
+                        id="username"
+                        name="username"
+                        type="text"
+                        value={formData.username}
+                        onChange={handleChange}
+                        placeholder="spectra-user"
+                        className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                        required
+                      />
+                    </div>
+                  </div>
 
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-dark-300 mb-2">

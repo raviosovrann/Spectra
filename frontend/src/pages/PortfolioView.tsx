@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, DollarSign, PieChart as PieChartIcon } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 import { mockHoldings, generatePriceHistory } from '../data/mockData'
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 
@@ -137,7 +137,7 @@ export default function PortfolioView() {
                 paddingAngle={2}
                 dataKey="value"
               >
-                {allocationData.map((entry, index) => (
+                {allocationData.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>

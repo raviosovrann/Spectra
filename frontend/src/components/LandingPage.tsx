@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion'
 import Hero from './landing/Hero'
 import Features from './landing/Features'
 import CryptoShowcase from './landing/CryptoShowcase'
