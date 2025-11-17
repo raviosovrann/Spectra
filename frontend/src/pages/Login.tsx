@@ -2,16 +2,30 @@ import { motion } from 'framer-motion'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [identifier, setIdentifier] = useState('')
+  const { login, isLoading, error, clearError } = useAuth()
+  const [emailAddress, setEmailAddress] = useState('')
   const [password, setPassword] = useState('')
+  const [localError, setLocalError] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // No authentication - directly navigate to dashboard
-    navigate('/dashboard')
+    setLocalError(null)
+
+    if (!emailAddress || !password) {
+      setLocalError('Email and password are required')
+      return
+    }
+
+    try {
+      await login({ emailAddress, password })
+      navigate('/dashboard')
+    } catch (err) {
+      setLocalError(error || 'Login failed. Please try again.')
+    }
   }
 
   return (
@@ -53,22 +67,37 @@ export default function Login() {
           transition={{ delay: 0.1 }}
           className="relative rounded-3xl bg-dark-900 p-8 border border-dark-800 shadow-2xl"
         >
+          {/* Error Message */}
+          {(localError || error) && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-400"
+            >
+              {localError || error}
+            </motion.div>
+          )}
+
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4 mt-6">
             <div>
-              <label htmlFor="identifier" className="block text-sm font-medium text-dark-300 mb-2">
-                Email or Username
+              <label htmlFor="emailAddress" className="block text-sm font-medium text-dark-300 mb-2">
+                Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-500" />
                 <input
-                  id="identifier"
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="Email or username"
+                  id="emailAddress"
+                  type="email"
+                  value={emailAddress}
+                  onChange={(e) => {
+                    setEmailAddress(e.target.value)
+                    setLocalError(null)
+                  }}
+                  placeholder="your@email.com"
                   className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -83,33 +112,25 @@ export default function Login() {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    setLocalError(null)
+                  }}
                   placeholder="••••••••"
                   className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="rounded border-dark-700 bg-dark-800 text-primary-500 focus:ring-primary-500 focus:ring-offset-dark-900"
-                />
-                <span className="text-dark-300">Remember me</span>
-              </label>
-              <a href="#" className="text-primary-400 hover:text-primary-300 transition-colors">
-                Forgot password?
-              </a>
-            </div>
-
             <button
               type="submit"
-              className="group w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-3 text-base font-semibold text-white hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50"
+              disabled={isLoading}
+              className="group w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-3 text-base font-semibold text-white hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign In
-              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              {isLoading ? 'Signing in...' : 'Sign In'}
+              {!isLoading && <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />}
             </button>
           </form>
 

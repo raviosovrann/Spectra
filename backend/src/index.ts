@@ -2,6 +2,9 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import logger from './utils/logger.js'
+import pool from './database/config.js'
+import authRoutes from './routes/auth.js'
+import userRoutes from './routes/users.js'
 
 // Load environment variables
 dotenv.config()
@@ -18,21 +21,39 @@ app.use(
 )
 app.use(express.json())
 
-// Health check endpoint with service status checks
-app.get('/health', (_req, res) => {
-  const health = {
-    status: 'ok',
-    timestamp: Date.now(),
-    uptime: process.uptime(),
-    services: {
-      api: 'ok',
-      // Additional service checks can be added here
-      // coinbaseAPI: checkCoinbaseConnection(),
-      // websocket: checkWebSocketStatus(),
-    },
-  }
+// Routes
+app.use('/api/auth', authRoutes)
+app.use('/api/users', userRoutes)
 
-  res.json(health)
+// Health check endpoint with service status checks
+app.get('/health', async (_req, res) => {
+  try {
+    // Test database connection
+    await pool.query('SELECT NOW()')
+
+    const health = {
+      status: 'ok',
+      timestamp: Date.now(),
+      uptime: process.uptime(),
+      services: {
+        api: 'ok',
+        database: 'ok',
+      },
+    }
+
+    res.json(health)
+  } catch (error) {
+    logger.error('Health check failed', { error: error instanceof Error ? error.message : String(error) })
+
+    res.status(503).json({
+      status: 'error',
+      timestamp: Date.now(),
+      services: {
+        api: 'ok',
+        database: 'error',
+      },
+    })
+  }
 })
 
 // Error handling middleware

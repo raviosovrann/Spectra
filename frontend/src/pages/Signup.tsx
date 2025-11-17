@@ -2,21 +2,56 @@ import { motion } from 'framer-motion'
 import { Mail, Lock, User, ArrowRight, Check } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 export default function Signup() {
   const navigate = useNavigate()
+  const { register, isLoading, error } = useAuth()
   const [formData, setFormData] = useState({
-    name: '',
+    fullName: '',
     username: '',
-    email: '',
+    emailAddress: '',
     password: '',
     confirmPassword: '',
   })
+  const [localError, setLocalError] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // No authentication - directly navigate to dashboard
-    navigate('/dashboard')
+    setLocalError(null)
+
+    // Validation
+    if (!formData.fullName || !formData.username || !formData.emailAddress || !formData.password) {
+      setLocalError('All fields are required')
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setLocalError('Passwords do not match')
+      return
+    }
+
+    if (formData.password.length < 8) {
+      setLocalError('Password must be at least 8 characters')
+      return
+    }
+
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      setLocalError('Password must contain uppercase, lowercase, and number')
+      return
+    }
+
+    try {
+      await register({
+        fullName: formData.fullName,
+        username: formData.username,
+        emailAddress: formData.emailAddress,
+        password: formData.password,
+      })
+      navigate('/dashboard')
+    } catch (err) {
+      setLocalError(error || 'Registration failed. Please try again.')
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,6 +59,7 @@ export default function Signup() {
       ...formData,
       [e.target.name]: e.target.value,
     })
+    setLocalError(null)
   }
 
   return (
@@ -133,61 +169,75 @@ export default function Signup() {
             <div className="relative rounded-3xl bg-dark-900 p-8 border border-dark-800 shadow-2xl">
               <h2 className="text-2xl font-bold text-white mb-6">Create Account</h2>
 
+              {/* Error Message */}
+              {(localError || error) && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-400"
+                >
+                  {localError || error}
+                </motion.div>
+              )}
+
               {/* Signup Form */}
               <form onSubmit={handleSubmit} className="space-y-4 mt-6">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-dark-300 mb-2">
+                  <label htmlFor="fullName" className="block text-sm font-medium text-dark-300 mb-2">
                     Full Name
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-500" />
                     <input
-                      id="name"
-                      name="name"
+                      id="fullName"
+                      name="fullName"
                       type="text"
-                      value={formData.name}
+                      value={formData.fullName}
                       onChange={handleChange}
                       placeholder="John Doe"
-                      className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                      className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all disabled:opacity-50"
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
 
-                  <div>
-                    <label htmlFor="username" className="block text-sm font-medium text-dark-300 mb-2">
-                      Username
-                    </label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-500" />
-                      <input
-                        id="username"
-                        name="username"
-                        type="text"
-                        value={formData.username}
-                        onChange={handleChange}
-                        placeholder="spectra-user"
-                        className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
-                        required
-                      />
-                    </div>
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-dark-300 mb-2">
+                    Username
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-500" />
+                    <input
+                      id="username"
+                      name="username"
+                      type="text"
+                      value={formData.username}
+                      onChange={handleChange}
+                      placeholder="spectra-user"
+                      className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all disabled:opacity-50"
+                      required
+                      disabled={isLoading}
+                    />
                   </div>
+                </div>
 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-dark-300 mb-2">
+                  <label htmlFor="emailAddress" className="block text-sm font-medium text-dark-300 mb-2">
                     Email Address
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-500" />
                     <input
-                      id="email"
-                      name="email"
+                      id="emailAddress"
+                      name="emailAddress"
                       type="email"
-                      value={formData.email}
+                      value={formData.emailAddress}
                       onChange={handleChange}
                       placeholder="you@example.com"
-                      className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                      className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all disabled:opacity-50"
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -205,10 +255,12 @@ export default function Signup() {
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="••••••••"
-                      className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                      className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all disabled:opacity-50"
                       required
+                      disabled={isLoading}
                     />
                   </div>
+                  <p className="text-xs text-dark-400 mt-1">Min 8 chars, uppercase, lowercase, number</p>
                 </div>
 
                 <div>
@@ -224,37 +276,20 @@ export default function Signup() {
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       placeholder="••••••••"
-                      className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                      className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all disabled:opacity-50"
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
 
-                <div className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    id="terms"
-                    className="mt-1 rounded border-dark-700 bg-dark-800 text-primary-500 focus:ring-primary-500 focus:ring-offset-dark-900"
-                    required
-                  />
-                  <label htmlFor="terms" className="text-sm text-dark-300">
-                    I agree to the{' '}
-                    <a href="#" className="text-primary-400 hover:text-primary-300">
-                      Terms of Service
-                    </a>{' '}
-                    and{' '}
-                    <a href="#" className="text-primary-400 hover:text-primary-300">
-                      Privacy Policy
-                    </a>
-                  </label>
-                </div>
-
                 <button
                   type="submit"
-                  className="group w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-3 text-base font-semibold text-white hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50"
+                  disabled={isLoading}
+                  className="group w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-3 text-base font-semibold text-white hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Create Account
-                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  {isLoading ? 'Creating Account...' : 'Create Account'}
+                  {!isLoading && <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />}
                 </button>
               </form>
 

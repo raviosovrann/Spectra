@@ -163,11 +163,13 @@ Spectra is an AI-powered cryptocurrency trading dashboard that combines real-tim
 
 #### Acceptance Criteria
 
-1. THE Spectra System SHALL store all API credentials in environment variables and never expose them in client-side code
-2. THE Spectra System SHALL implement HMAC SHA256 signing for all authenticated Coinbase API requests
-3. THE Spectra System SHALL enforce rate limiting of 100 requests per 15-minute window per user
-4. THE Spectra System SHALL implement CORS restrictions to allow requests only from the configured frontend domain
-5. THE Trading Interface SHALL validate all user inputs on both client and server side before processing orders
+1. THE Spectra System SHALL implement user registration and login with bcrypt password hashing (10 salt rounds)
+2. THE Spectra System SHALL issue JWT tokens with 24-hour expiration for authenticated sessions
+3. THE Spectra System SHALL encrypt user Coinbase API credentials using AES-256-GCM encryption with separate IV and auth tag storage
+4. THE Spectra System SHALL implement HMAC SHA256 signing for all authenticated Coinbase API requests
+5. THE Spectra System SHALL enforce rate limiting of 100 requests per 15-minute window per user
+6. THE Spectra System SHALL implement CORS restrictions to allow requests only from the configured frontend domain
+7. THE Trading Interface SHALL validate all user inputs on both client and server side before processing orders
 
 ### Requirement 13: Error Handling and Recovery
 

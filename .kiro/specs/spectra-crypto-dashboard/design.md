@@ -15,13 +15,21 @@ graph TB
         Store[Zustand Stores]
         Hooks[Custom Hooks]
         Services[Service Layer]
+        AuthContext[Auth Context]
     end
 
     subgraph "Backend - Node.js + Express"
         API[REST API Routes]
         WSServer[WebSocket Server]
         AIEngine[AI Analysis Engine]
-        Auth[Authentication Middleware]
+        AuthMiddleware[Authentication Middleware]
+        AuthService[Auth Service]
+        UserService[User Service]
+    end
+
+    subgraph "Data Layer"
+        PostgreSQL[(PostgreSQL Database)]
+        LocalStorage[Browser LocalStorage]
     end
 
     subgraph "External Services"
@@ -32,14 +40,22 @@ graph TB
     UI --> Hooks
     Hooks --> Store
     Hooks --> Services
+    Hooks --> AuthContext
     Services --> API
     Services --> WSServer
+    AuthContext --> AuthService
 
-    API --> Auth
-    Auth --> CoinbaseREST
+    API --> AuthMiddleware
+    AuthMiddleware --> UserService
+    UserService --> PostgreSQL
+    AuthService --> API
+    AuthMiddleware --> CoinbaseREST
     WSServer --> CoinbaseWS
     AIEngine --> Store
     API --> AIEngine
+    
+    Store --> LocalStorage
+    AuthContext --> LocalStorage
 ```
 
 ### Technology Stack Rationale
@@ -95,40 +111,77 @@ graph TB
 
 ## Components and Interfaces
 
+### UI Design Philosophy
+
+**Robinhood-Inspired Interface:**
+
+The Spectra System adopts a clean, modern interface inspired by Robinhood's design principles (as implemented in tasks 2.4-2.5):
+
+- **Horizontal Tab Navigation**: Primary navigation uses tabs instead of sidebar for better mobile experience
+- **Minimalist Design**: Focus on data and charts with minimal chrome
+- **Bold Typography**: Large, readable numbers for prices and values
+- **Color-Coded Feedback**: Green for gains/bullish, red for losses/bearish, consistent throughout
+- **Dark Mode First**: Optimized for dark mode with high contrast for readability
+- **Smooth Animations**: Subtle transitions and micro-interactions for polish
+
+**Navigation Structure:**
+
+- **Header**: Logo, search, account menu, theme toggle, connection status indicator
+- **Tab Bar**: Investing (default), Trading, Portfolio, Insights, Alerts, History
+- **Mobile**: Bottom tab bar for thumb-friendly navigation on mobile devices
+- **Responsive**: Adapts seamlessly from 320px mobile to 1920px desktop (Requirement 9.1)
+
 ### Frontend Component Hierarchy
 
 ```
 App
-├── Layout
-│   ├── Header (navigation, theme toggle, connection status)
-│   └── Sidebar (watchlist, quick actions)
-├── HeatmapView
+├── DashboardLayout
+│   ├── Header (logo, search, account menu, theme toggle, connection status)
+│   ├── TabNavigation (horizontal tabs: Investing, Trading, Portfolio, Insights, Alerts, History)
+│   └── MainContent (route-based content area)
+├── LandingPage (Hero, Features, CryptoShowcase, AIInsights, CallToAction, Footer)
+├── Login (email/password form, redirects to /dashboard)
+├── Signup (registration form, redirects to /dashboard)
+├── InvestingView (default dashboard view)
 │   ├── ViewModeSelector (24h change, volume, volatility, market cap)
-│   ├── HeatmapGrid
-│   │   └── CoinCell[] (individual cryptocurrency cells)
+│   ├── HeatmapGrid (responsive grid → vertical list on mobile)
+│   │   └── CoinCell[] (individual cryptocurrency cells with pulse animations)
 │   └── CoinDetailModal (detailed view on click)
 ├── TradingView
 │   ├── OrderForm (buy/sell form with validation)
-│   ├── OrderBook (live bids/asks)
+│   ├── OrderBook (live bids/asks, optional)
 │   ├── OrderConfirmation (confirmation modal)
-│   └── PriceChart (candlestick/line chart)
+│   └── PriceChart (line chart with time range selector)
 ├── PortfolioView
-│   ├── PortfolioSummary (total value, 24h P&L)
-│   ├── HoldingsList (individual holdings table)
+│   ├── PortfolioSummary (total value, 24h P&L, available cash)
+│   ├── HoldingsList (individual holdings table with sorting)
 │   ├── AllocationChart (pie chart)
-│   └── PortfolioChart (historical value line chart)
+│   └── PortfolioChart (historical value line chart, 7d/30d)
 ├── InsightsView
 │   ├── InsightsDashboard
-│   │   └── InsightCard[] (3-5 prioritized insights)
-│   └── MetricsDisplay (RSI, volatility, volume indicators)
+│   │   └── InsightCard[] (3-5 prioritized insights with confidence scores)
+│   ├── MetricsDisplay (RSI, volatility, volume indicators)
+│   └── InsightDetailModal (detailed analysis on click)
 ├── AlertsView
-│   ├── AlertsList (active alerts)
 │   ├── CreateAlert (alert creation form)
+│   ├── AlertsList (active/triggered alerts with filters)
 │   └── AlertNotification (toast notifications)
-└── TradeHistoryView
-    ├── TradeHistoryTable (paginated table)
-    ├── TradeFilters (filter controls)
-    └── ExportButton (CSV export)
+├── HistoryView (replaces TradeHistoryView)
+│   ├── TradeHistoryTable (paginated/virtual scrolling table)
+│   ├── TradeFilters (symbol, date range, type, status)
+│   ├── TradeSearch (search by ID or symbol)
+│   └── ExportButton (CSV export)
+├── Settings
+│   ├── CoinbaseCredentialsForm (API key and secret input)
+│   ├── AccountInformation (display user profile data)
+│   └── SecurityNotice (encryption and security information)
+└── Shared Components
+    ├── ErrorBoundary (catches React errors)
+    ├── LoadingSpinner (loading states)
+    ├── SkeletonLoader (skeleton screens)
+    ├── Toast (notifications)
+    ├── EmptyState (no data states)
+    └── PaperTradingIndicator (badge when paper trading is active)
 ```
 
 ### Key Component Interfaces
@@ -259,6 +312,167 @@ interface OrderResponse {
 ```
 
 ## Data Models
+
+### Database Schema
+
+**PostgreSQL Database: `spectra_dev`**
+
+The system uses PostgreSQL for persistent storage of user data, authentication credentials, and trading history.
+
+**Users Table (`spectra_user_t`):**
+
+```sql
+CREATE TABLE spectra_user_t (
+  user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  full_name VARCHAR(255) NOT NULL,
+  username VARCHAR(50) UNIQUE NOT NULL,
+  email_address VARCHAR(255) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL, -- bcrypt hashed
+  user_coinbase_public VARCHAR(500), -- Encrypted Coinbase API key
+  user_coinbase_public_iv VARCHAR(32), -- Initialization vector for encryption
+  user_coinbase_public_tag VARCHAR(32), -- Auth tag for encryption
+  user_coinbase_secret VARCHAR(500), -- Encrypted Coinbase API secret
+  user_coinbase_secret_iv VARCHAR(32),
+  user_coinbase_secret_tag VARCHAR(32),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_login TIMESTAMP,
+  is_active BOOLEAN DEFAULT true
+);
+
+CREATE INDEX idx_user_email ON spectra_user_t(email_address);
+CREATE INDEX idx_user_username ON spectra_user_t(username);
+```
+
+**User Model Interface:**
+
+```typescript
+interface User {
+  userId: string
+  fullName: string
+  username: string
+  emailAddress: string
+  password: string // hashed
+  userCoinbasePublic?: string // encrypted
+  userCoinbasePublicIv?: string
+  userCoinbasePublicTag?: string
+  userCoinbaseSecret?: string // encrypted
+  userCoinbaseSecretIv?: string
+  userCoinbaseSecretTag?: string
+  createdAt: Date
+  updatedAt: Date
+  lastLogin?: Date
+  isActive: boolean
+}
+
+interface UserDTO {
+  userId: string
+  fullName: string
+  username: string
+  emailAddress: string
+  hasCoinbaseKeys: boolean
+  createdAt: Date
+  lastLogin?: Date
+}
+```
+
+**Portfolios Table:**
+
+```sql
+CREATE TABLE portfolios (
+  portfolio_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES spectra_user_t(user_id) ON DELETE CASCADE,
+  total_value DECIMAL(20, 2) NOT NULL DEFAULT 0,
+  cash_balance DECIMAL(20, 2) NOT NULL DEFAULT 0,
+  change_24h DECIMAL(20, 2) DEFAULT 0,
+  change_24h_percent DECIMAL(10, 4) DEFAULT 0,
+  is_paper_trading BOOLEAN DEFAULT false,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_portfolio_user ON portfolios(user_id);
+```
+
+**Holdings Table:**
+
+```sql
+CREATE TABLE holdings (
+  holding_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  portfolio_id UUID NOT NULL REFERENCES portfolios(portfolio_id) ON DELETE CASCADE,
+  symbol VARCHAR(20) NOT NULL,
+  quantity DECIMAL(20, 8) NOT NULL,
+  average_buy_price DECIMAL(20, 2) NOT NULL,
+  current_price DECIMAL(20, 2),
+  current_value DECIMAL(20, 2),
+  unrealized_pnl DECIMAL(20, 2),
+  unrealized_pnl_percent DECIMAL(10, 4),
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_holding_portfolio ON holdings(portfolio_id);
+CREATE INDEX idx_holding_symbol ON holdings(symbol);
+```
+
+**Trades Table:**
+
+```sql
+CREATE TABLE trades (
+  trade_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES spectra_user_t(user_id) ON DELETE CASCADE,
+  order_id VARCHAR(100),
+  symbol VARCHAR(20) NOT NULL,
+  side VARCHAR(10) NOT NULL CHECK (side IN ('buy', 'sell')),
+  amount DECIMAL(20, 8) NOT NULL,
+  price DECIMAL(20, 2) NOT NULL,
+  fees DECIMAL(20, 2) DEFAULT 0,
+  total_value DECIMAL(20, 2) NOT NULL,
+  is_paper_trade BOOLEAN DEFAULT false,
+  executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_trade_user ON trades(user_id);
+CREATE INDEX idx_trade_symbol ON trades(symbol);
+CREATE INDEX idx_trade_executed ON trades(executed_at DESC);
+```
+
+**Alerts Table:**
+
+```sql
+CREATE TABLE alerts (
+  alert_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES spectra_user_t(user_id) ON DELETE CASCADE,
+  symbol VARCHAR(20) NOT NULL,
+  alert_type VARCHAR(50) NOT NULL CHECK (alert_type IN ('price', 'rsi', 'volume', 'sma_crossover', 'volatility')),
+  condition JSONB NOT NULL,
+  status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'triggered', 'snoozed', 'dismissed')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  triggered_at TIMESTAMP
+);
+
+CREATE INDEX idx_alert_user ON alerts(user_id);
+CREATE INDEX idx_alert_status ON alerts(status);
+CREATE INDEX idx_alert_symbol ON alerts(symbol);
+```
+
+**Database Connection Configuration:**
+
+```typescript
+import { Pool } from 'pg'
+
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: process.env.DB_NAME || 'spectra_dev',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  max: 20, // Maximum pool size
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+})
+
+export default pool
+```
 
 ### Market Data Models
 
@@ -748,7 +962,9 @@ class MarketDataBatcher {
 }
 ```
 
-**Virtual Scrolling:**
+**Virtual Scrolling for Large Lists:**
+
+To maintain performance with large datasets (Requirement 11.3), the system implements virtual scrolling using react-window. This technique only renders visible items, dramatically reducing DOM nodes and improving scroll performance.
 
 ```typescript
 import { FixedSizeList } from 'react-window';
@@ -768,6 +984,20 @@ function TradeHistory({ trades }: { trades: Trade[] }) {
   );
 }
 ```
+
+**When to Use Virtual Scrolling:**
+
+- Trade history lists exceeding 100 items (Requirement 11.3)
+- Alert lists with many historical alerts
+- Order book displays with hundreds of orders
+- Any list that could grow unbounded over time
+
+**Performance Benefits:**
+
+- Renders only ~20 visible items instead of potentially thousands
+- Constant memory usage regardless of list size
+- Smooth 60fps scrolling even with 10,000+ items
+- Reduced initial render time
 
 ### Backend Optimizations
 
@@ -857,6 +1087,171 @@ app.use('/api/', apiLimiter)
 - Use projection to fetch only required fields
 - Batch database writes for trade history
 
+**Data Retention Policy:**
+
+- Trade history: Minimum 90 days retention (Requirement 14.5)
+- Market data: Keep 30 days of historical candles for charting
+- Alert history: Keep triggered alerts for 30 days
+- Portfolio snapshots: Daily snapshots for 90 days for historical charts
+- Implement automated cleanup jobs to remove expired data
+
+## Data Persistence Strategy
+
+### Client-Side Storage (localStorage)
+
+The Spectra System uses browser localStorage for user preferences and non-sensitive data to provide a seamless experience across sessions (Requirement 14).
+
+**Persisted Data:**
+
+```typescript
+interface LocalStorageSchema {
+  // Theme preference (Requirement 14.1)
+  theme: 'dark' | 'light'
+  
+  // User watchlist (Requirement 14.2)
+  watchlist: string[] // Array of cryptocurrency symbols
+  
+  // Alert configurations (Requirement 14.3)
+  alerts: Alert[]
+  
+  // Last selected view mode (Requirement 14.4)
+  lastViewMode: 'change' | 'volume' | 'volatility' | 'marketCap'
+  
+  // Paper trading virtual portfolio (Requirement 10.1, 10.3)
+  paperTradingPortfolio: {
+    balance: number
+    holdings: Holding[]
+    trades: Trade[]
+  }
+  
+  // Paper trading mode preference
+  paperTradingEnabled: boolean
+}
+```
+
+**Storage Management:**
+
+```typescript
+class StorageManager {
+  private static PREFIX = 'spectra_'
+  
+  static save<T>(key: string, value: T): void {
+    try {
+      localStorage.setItem(
+        `${this.PREFIX}${key}`,
+        JSON.stringify(value)
+      )
+    } catch (error) {
+      logger.warn('localStorage save failed', { key, error })
+      // Gracefully degrade if storage is full
+    }
+  }
+  
+  static load<T>(key: string, defaultValue: T): T {
+    try {
+      const item = localStorage.getItem(`${this.PREFIX}${key}`)
+      return item ? JSON.parse(item) : defaultValue
+    } catch (error) {
+      logger.warn('localStorage load failed', { key, error })
+      return defaultValue
+    }
+  }
+  
+  static clear(key: string): void {
+    localStorage.removeItem(`${this.PREFIX}${key}`)
+  }
+}
+```
+
+**Data Synchronization:**
+
+- Theme changes persist immediately on toggle
+- Watchlist updates persist on add/remove operations
+- Alert configurations sync after creation/deletion
+- Paper trading portfolio syncs after each simulated trade
+- View mode preference saves on mode change
+
+### Server-Side Storage
+
+**In-Memory Storage (MVP):**
+
+For the MVP, the backend uses in-memory data structures for simplicity and rapid development. This approach is suitable for demo purposes and single-instance deployments.
+
+```typescript
+// Portfolio storage
+const portfolios = new Map<string, Portfolio>()
+
+// Trade history storage (90-day retention per Requirement 14.5)
+const trades = new Map<string, Trade[]>()
+
+// Alert storage
+const alerts = new Map<string, Alert[]>()
+
+// Market data cache (30-day retention)
+const marketDataCache = new Map<string, PriceHistory>()
+```
+
+**Data Cleanup Strategy:**
+
+```typescript
+class DataCleanupService {
+  private cleanupInterval = 24 * 60 * 60 * 1000 // 24 hours
+  
+  start(): void {
+    setInterval(() => {
+      this.cleanupOldTrades()
+      this.cleanupOldMarketData()
+      this.cleanupTriggeredAlerts()
+    }, this.cleanupInterval)
+  }
+  
+  private cleanupOldTrades(): void {
+    const cutoffDate = Date.now() - (90 * 24 * 60 * 60 * 1000) // 90 days
+    
+    trades.forEach((userTrades, userId) => {
+      const filtered = userTrades.filter(
+        trade => trade.executedAt > cutoffDate
+      )
+      trades.set(userId, filtered)
+    })
+  }
+  
+  private cleanupOldMarketData(): void {
+    const cutoffDate = Date.now() - (30 * 24 * 60 * 60 * 1000) // 30 days
+    
+    marketDataCache.forEach((history, symbol) => {
+      history.candles = history.candles.filter(
+        candle => candle.timestamp > cutoffDate
+      )
+    })
+  }
+  
+  private cleanupTriggeredAlerts(): void {
+    const cutoffDate = Date.now() - (30 * 24 * 60 * 60 * 1000) // 30 days
+    
+    alerts.forEach((userAlerts, userId) => {
+      const filtered = userAlerts.filter(alert => {
+        if (alert.status === 'active') return true
+        if (alert.status === 'triggered' && alert.triggeredAt) {
+          return alert.triggeredAt > cutoffDate
+        }
+        return false
+      })
+      alerts.set(userId, filtered)
+    })
+  }
+}
+```
+
+**Future Database Migration:**
+
+The in-memory storage can be replaced with a database (PostgreSQL, MongoDB) without changing the service interfaces:
+
+- Portfolio data → `portfolios` table
+- Trade history → `trades` table with `created_at` index
+- Alerts → `alerts` table with `user_id` and `status` indexes
+- Market data → Time-series database (InfluxDB, TimescaleDB) for optimal performance
+
 ## Security Considerations
 
 ### API Key Management
@@ -876,12 +1271,82 @@ JWT_SECRET=your_jwt_secret
 - Use separate keys for development, staging, production
 - Implement key versioning for zero-downtime rotation
 
-### Authentication Flow
+### Authentication Architecture
 
-**HMAC Signature Generation:**
+**User Authentication Flow:**
+
+The Spectra System implements JWT-based authentication for user sessions and stores user-specific Coinbase API credentials securely in the database. Users register with email, username, and password, which are validated and hashed with bcrypt before storage.
+
+**Registration Flow:**
+1. User submits registration form with full name, username, email, and password
+2. Frontend validates email format, password strength (8+ chars, uppercase, lowercase, number), and username format (3-50 chars, alphanumeric + underscore)
+3. Frontend sends POST /api/auth/register to backend
+4. Backend validates inputs and checks for duplicate email/username
+5. Backend hashes password with bcrypt (10 salt rounds)
+6. Backend creates user record in spectra_user_t table
+7. Backend returns success message
+
+**Login Flow:**
+1. User submits login form with email and password
+2. Frontend sends POST /api/auth/login to backend
+3. Backend queries user by email
+4. Backend verifies password using bcrypt.compare()
+5. Backend generates JWT token with 24-hour expiration
+6. Backend returns JWT token and user data (excluding password and encrypted keys)
+7. Frontend stores JWT in localStorage with key 'spectra_auth_token'
+8. Frontend redirects to /dashboard
+
+**API Request Flow:**
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant Database
+    participant Coinbase
+
+    User->>Frontend: Login (email, password)
+    Frontend->>Backend: POST /api/auth/login
+    Backend->>Database: Query user by email
+    Database-->>Backend: User record
+    Backend->>Backend: Verify password (bcrypt)
+    Backend->>Backend: Generate JWT token
+    Backend-->>Frontend: JWT token + user data
+    Frontend->>Frontend: Store JWT in localStorage
+    Frontend->>Backend: API request with JWT in Authorization header
+    Backend->>Backend: Verify JWT signature and expiration
+    Backend->>Database: Get user's Coinbase keys
+    Database-->>Backend: Encrypted Coinbase API credentials
+    Backend->>Backend: Decrypt credentials using ENCRYPTION_KEY
+    Backend->>Coinbase: Request with user's keys
+    Coinbase-->>Backend: Response
+    Backend-->>Frontend: Data
+```
+
+**JWT Token Structure:**
 
 ```typescript
-function generateSignature(
+interface JWTPayload {
+  userId: string
+  email: string
+  username: string
+  iat: number // issued at
+  exp: number // expiration (24 hours)
+}
+```
+
+**Password Security:**
+
+- Passwords hashed using bcrypt with salt rounds of 10
+- Never store plain text passwords
+- Implement password strength requirements (min 8 characters, uppercase, lowercase, number)
+
+**Coinbase API Authentication (HMAC Signature):**
+
+Each user stores their own Coinbase API credentials encrypted in the database. When making Coinbase API requests, the backend retrieves the user's credentials and generates HMAC signatures.
+
+```typescript
+function generateCoinbaseSignature(
   timestamp: number,
   method: string,
   path: string,
@@ -894,13 +1359,53 @@ function generateSignature(
 
 // Usage
 const timestamp = Math.floor(Date.now() / 1000)
-const signature = generateSignature(
+const signature = generateCoinbaseSignature(
   timestamp,
   'POST',
   '/api/v3/brokerage/orders',
   JSON.stringify(orderData),
-  process.env.COINBASE_API_SECRET
+  userCoinbaseSecret // Retrieved from database
 )
+```
+
+**API Credential Encryption:**
+
+```typescript
+import crypto from 'crypto'
+
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY // 32-byte key
+const ALGORITHM = 'aes-256-gcm'
+
+function encryptApiKey(apiKey: string): { encrypted: string; iv: string; tag: string } {
+  const iv = crypto.randomBytes(16)
+  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY, 'hex'), iv)
+  
+  let encrypted = cipher.update(apiKey, 'utf8', 'hex')
+  encrypted += cipher.final('hex')
+  
+  const tag = cipher.getAuthTag()
+  
+  return {
+    encrypted,
+    iv: iv.toString('hex'),
+    tag: tag.toString('hex')
+  }
+}
+
+function decryptApiKey(encrypted: string, iv: string, tag: string): string {
+  const decipher = crypto.createDecipheriv(
+    ALGORITHM,
+    Buffer.from(ENCRYPTION_KEY, 'hex'),
+    Buffer.from(iv, 'hex')
+  )
+  
+  decipher.setAuthTag(Buffer.from(tag, 'hex'))
+  
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
+  decrypted += decipher.final('utf8')
+  
+  return decrypted
+}
 ```
 
 ### Input Validation

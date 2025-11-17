@@ -1,8 +1,9 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Sun, Moon, Menu, X } from 'lucide-react'
-import { useState } from 'react'
+import { Sun, Moon, Menu, X, Settings, LogOut } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
 import { useUserStore } from '../../stores/userStore'
+import { useAuth } from '../../hooks/useAuth'
 
 // Page icons
 import investingIcon from '../../assets/investing-page.svg'
@@ -25,11 +26,31 @@ export default function DashboardLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { theme, setTheme } = useUserStore()
+  const { logout, user } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const accountMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close account menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setAccountMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
     setTheme(newTheme)
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
   }
 
   const getActiveTab = () => {
@@ -94,13 +115,62 @@ export default function DashboardLayout() {
               </button>
 
               {/* Account Menu (Desktop) */}
-              <button
-                onClick={() => navigate('/dashboard/profile')}
-                className="hidden md:flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white font-semibold cursor-pointer hover:scale-105 transition-transform"
-                aria-label="View Profile"
-              >
-                U
-              </button>
+              <div className="hidden md:relative" ref={accountMenuRef}>
+                <button
+                  onClick={() => setAccountMenuOpen(!accountMenuOpen)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white font-semibold cursor-pointer hover:scale-105 transition-transform"
+                  aria-label="Account menu"
+                >
+                  {user?.fullName.charAt(0).toUpperCase() || 'U'}
+                </button>
+
+                {/* Dropdown Menu */}
+                {accountMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute right-0 mt-2 w-48 rounded-xl bg-dark-800 border border-dark-700 shadow-xl z-50"
+                  >
+                    <div className="p-3 border-b border-dark-700">
+                      <p className="text-sm font-semibold text-white">{user?.fullName}</p>
+                      <p className="text-xs text-dark-400">{user?.emailAddress}</p>
+                    </div>
+
+                    <div className="p-2 space-y-1">
+                      <button
+                        onClick={() => {
+                          navigate('/dashboard/profile')
+                          setAccountMenuOpen(false)
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-dark-300 hover:bg-dark-700 hover:text-white transition-colors"
+                      >
+                        <div className="h-4 w-4 rounded-full bg-primary-500/20 flex items-center justify-center text-xs">👤</div>
+                        Profile
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          navigate('/dashboard/settings')
+                          setAccountMenuOpen(false)
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-dark-300 hover:bg-dark-700 hover:text-white transition-colors"
+                      >
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </button>
+
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Logout
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
             </div>
           </div>
 

@@ -45,6 +45,110 @@
   - Create backend/src/types/websocket.ts for message type definitions
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 13.3_
 
+- [x] 2.4 Set up PostgreSQL database and user authentication
+- [x] 2.4.1 Configure database connection
+  - Install pg (PostgreSQL client) and related dependencies
+  - Create backend/src/database/config.ts with connection pool configuration
+  - Add database environment variables to .env.example (DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD)
+  - Test database connection with health check
+  - _Requirements: 12.1, 14.5_
+
+- [x] 2.4.2 Run database migrations
+  - Execute backend/src/database/migrations/001_create_users_table.sql to create spectra_user_t table
+  - Verify table creation with columns: user_id, full_name, username, email_address, password, user_coinbase_public, user_coinbase_secret (with encryption fields)
+  - Verify indexes are created on email_address and username
+  - _Requirements: 12.1_
+
+- [x] 2.4.3 Implement user authentication service
+  - Create backend/src/services/AuthService.ts with register, login, and verifyToken methods
+  - Implement password hashing with bcrypt (10 salt rounds)
+  - Implement JWT token generation and verification (24-hour expiration)
+  - Create backend/src/types/auth.ts for authentication type definitions
+  - Add ENCRYPTION_KEY and JWT_SECRET to environment variables
+  - _Requirements: 12.1, 12.2_
+
+- [x] 2.4.4 Implement API credential encryption
+  - Create backend/src/utils/encryption.ts with encryptApiKey and decryptApiKey functions
+  - Use AES-256-GCM encryption algorithm
+  - Store initialization vector (IV) and auth tag separately in database
+  - Test encryption/decryption with sample Coinbase API keys
+  - _Requirements: 12.1, 12.2_
+
+- [x] 2.4.5 Create authentication routes
+  - Create backend/src/routes/auth.ts with endpoints: POST /api/auth/register, POST /api/auth/login, GET /api/auth/me
+  - Implement input validation for registration (email format, password strength, unique username)
+  - Return JWT token and user data (excluding password and encrypted keys) on successful login
+  - Create authentication middleware backend/src/middleware/auth.ts to verify JWT tokens
+  - Wire up auth routes in backend/src/index.ts
+  - _Requirements: 12.1, 12.5_
+
+- [x] 2.4.6 Create user management routes
+  - Create backend/src/routes/users.ts with endpoints: GET /api/users/profile, PATCH /api/users/profile, PATCH /api/users/coinbase-keys
+  - Implement endpoint to update user profile (full_name, username)
+  - Implement endpoint to add/update Coinbase API credentials (encrypt before storing)
+  - Protect all routes with authentication middleware
+  - Wire up user routes in backend/src/index.ts
+  - _Requirements: 12.1, 12.2, 15.1_
+
+- [x] 2.4.7 Implement frontend authentication context
+  - Create frontend/src/contexts/AuthContext.tsx with login, logout, register methods
+  - Store JWT token in localStorage with key 'spectra_auth_token'
+  - Implement automatic token refresh logic (check expiration)
+  - Create frontend/src/hooks/useAuth.ts hook for accessing auth context
+  - Create frontend/src/types/auth.ts for authentication type definitions
+  - _Requirements: 12.1_
+
+- [x] 2.4.8 Update Login and Signup pages with real authentication
+  - Update frontend/src/pages/Login.tsx to call AuthContext.login() with email and password
+  - Update frontend/src/pages/Signup.tsx to call AuthContext.register() with form data
+  - Add form validation (email format, password strength, matching passwords)
+  - Display error messages for failed authentication
+  - Redirect to /dashboard on successful authentication
+  - _Requirements: 12.1, 12.5_
+
+- [x] 2.4.9 Implement protected routes
+  - Create frontend/src/components/ProtectedRoute.tsx wrapper component
+  - Check authentication status before rendering protected routes
+  - Redirect to /login if user is not authenticated
+  - Wrap all dashboard routes with ProtectedRoute
+  - _Requirements: 12.1_
+
+- [x] 2.4.10 Create user settings page for Coinbase API keys
+  - Create frontend/src/pages/Settings.tsx with form for Coinbase API credentials
+  - Add input fields for API key and API secret
+  - Implement save functionality that calls PATCH /api/users/coinbase-keys
+  - Display success/error messages
+  - Add link to Settings page in dashboard header account menu
+  - _Requirements: 12.1, 15.1_
+
+- [ ]\* 2.4.11 Add authentication tests
+  - Write unit tests for password hashing and JWT generation
+  - Write unit tests for API credential encryption/decryption
+  - Write integration tests for registration and login flows
+  - Test authentication middleware with valid and invalid tokens
+  - _Requirements: 12.1, 12.2_
+
+- [x] 2.5 Build Dashboard Layout and Navigation (Robinhood-style)
+  - Create frontend/src/components/layout/DashboardLayout.tsx with Header and main content area
+  - Create Header with logo, search bar, account menu, theme toggle, connection status
+  - Create horizontal tab navigation: Investing, Trading, Portfolio, Insights, Alerts, History
+  - Implement theme toggle (dark/light mode) with localStorage persistence
+  - Add responsive mobile navigation (bottom tab bar on mobile)
+  - Create route structure: /dashboard (default to Investing), /dashboard/trading, /dashboard/portfolio, /dashboard/insights, /dashboard/alerts, /dashboard/history
+  - Update Login/Signup pages to redirect to /dashboard on button click
+  - _Requirements: 9.5, 14.1_
+
+- [x] 2.6 Create Frontend Page Placeholders with Mock Data
+  - Create frontend/src/pages/InvestingView.tsx with heatmap grid using mock data
+  - Create frontend/src/pages/TradingView.tsx with order form UI using mock data
+  - Create frontend/src/pages/PortfolioView.tsx with holdings table and charts using mock data
+  - Create frontend/src/pages/InsightsView.tsx with AI insights cards using mock data
+  - Create frontend/src/pages/AlertsView.tsx with alerts list using mock data
+  - Create frontend/src/pages/HistoryView.tsx with trade history table using mock data
+  - Create frontend/src/data/mockData.ts with sample cryptocurrency, portfolio, trade, insight, and alert data
+  - Create frontend/src/stores/userStore.ts for theme and user preferences
+  - _Requirements: 1.1, 3.1, 4.1, 5.1, 7.1, 8.1, 9.5_
+
 - [ ] 3. Backend WebSocket Server for Frontend Communication
 - [ ] 3.1 Create WebSocket server for frontend clients
   - Create backend/src/services/FrontendWebSocketServer.ts
@@ -93,71 +197,32 @@
   - Wire up insights routes in backend/src/index.ts
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 11.2_
 
-- [ ] 5. Frontend Foundation and State Management
-- [x] 5.1 Set up React app with routing
-  - Create React app with Vite and TypeScript
-  - Set up React Router with routes: /, /login, /signup, /dashboard
-  - Create basic Dashboard page structure
-  - Landing page with navigation already implemented
-  - _Requirements: 9.5, 14.1_
-
-- [ ] 5.1a Build Dashboard Layout and Navigation (Robinhood-style)
-  - Create frontend/src/components/layout/DashboardLayout.tsx with Header and main content area
-  - Create Header with logo, search bar, account menu, theme toggle, connection status
-  - Create horizontal tab navigation (similar to Robinhood): Investing, Trading, Portfolio, Insights, Alerts, History
-  - Implement theme toggle (dark/light mode) with localStorage persistence
-  - Add responsive mobile navigation (bottom tab bar on mobile)
-  - Create route structure: /dashboard (default to Investing/Heatmap), /dashboard/trading, /dashboard/portfolio, /dashboard/insights, /dashboard/alerts, /dashboard/history
-  - Update Login/Signup pages to redirect to /dashboard on button click
-  - _Requirements: 9.5, 14.1_
-
-- [ ] 5.2 Create Zustand stores
+- [ ] 5. Frontend State Management and Real-Time Data Integration
+- [ ] 5.1 Create Zustand stores for application state
   - Create frontend/src/stores/marketStore.ts for cryptocurrency data with updateBatch() method
   - Create frontend/src/stores/portfolioStore.ts for holdings and valuations
   - Create frontend/src/stores/alertsStore.ts for alert management
-  - Create frontend/src/stores/uiStore.ts for theme, view mode, selected coin
   - Create frontend/src/types/market.ts and other type definition files
   - _Requirements: 3.1, 3.2, 14.2, 14.4_
 
-- [ ] 5.3 Implement WebSocket hook for frontend
+- [ ] 5.2 Implement WebSocket hook for frontend
   - Create frontend/src/hooks/useWebSocket.ts custom hook with connection management
   - Implement automatic reconnection on connection loss
   - Add message handler registration system
   - Update marketStore when ticker messages arrive
-  - Create frontend/src/components/ConnectionStatus.tsx indicator component
-  - Integrate ConnectionStatus in dashboard Header
+  - Update ConnectionStatus indicator in DashboardLayout to reflect real connection status
   - _Requirements: 2.2, 13.3_
 
-- [ ] 6. Heatmap Visualization
-- [ ] 6.1 Build HeatmapGrid component
-  - Create frontend/src/components/heatmap/HeatmapGrid.tsx
-  - Implement responsive grid layout using CSS Grid
-  - Implement color calculation based on 24h change (-10% to +10% range)
-  - Add smooth color transitions using CSS transitions
-  - Implement click handler to open CoinDetailModal
-  - Optimize rendering with React.memo
-  - Create frontend/src/pages/InvestingView.tsx (default dashboard view) and integrate HeatmapGrid
-  - This will be the main "Investing" tab (similar to Robinhood's home screen)
-  - _Requirements: 1.1, 1.3, 9.1, 9.2, 11.1_
-
-- [ ] 6.2 Build CoinCell component
-  - Create frontend/src/components/heatmap/CoinCell.tsx
-  - Display symbol, name, price, 24h change, volume, market cap
-  - Create frontend/src/utils/formatters.ts for number formatting (K/M/B suffixes)
+- [ ] 6. Real-Time Heatmap Integration
+- [ ] 6.1 Enhance InvestingView with real-time data
+  - Update frontend/src/pages/InvestingView.tsx to use marketStore instead of mockData
   - Implement pulse animation on price updates (green for up, red for down)
-  - Add hover effects for better UX
-  - Use monospace font for numerical values
-  - _Requirements: 1.4, 9.3_
+  - Add React.memo optimization for CoinCell rendering
+  - Create frontend/src/utils/formatters.ts for number formatting (K/M/B suffixes)
+  - Ensure smooth color transitions using CSS transitions
+  - _Requirements: 1.1, 1.3, 1.4, 9.1, 9.2, 9.3, 11.1_
 
-- [ ] 6.3 Implement ViewModeSelector
-  - Create frontend/src/components/heatmap/ViewModeSelector.tsx
-  - Create toggle buttons for: 24h Change, Volume, Volatility, Market Cap
-  - Update uiStore when view mode changes
-  - Reorganize heatmap cells based on selected metric
-  - Add visual indicator for active view mode
-  - _Requirements: 1.5_
-
-- [ ] 6.4 Create CoinDetailModal
+- [ ] 6.2 Create CoinDetailModal
   - Create frontend/src/components/modals/CoinDetailModal.tsx
   - Display detailed cryptocurrency information
   - Show price chart (line chart using Recharts)
@@ -180,12 +245,15 @@
 - [ ] 7.2 Implement order submission flow
   - Create backend/src/routes/orders.ts with placeOrder endpoint (POST /api/orders)
   - Create backend/src/services/OrderService.ts for order logic
+  - Protect route with authentication middleware to get user_id
+  - Retrieve user's Coinbase API credentials from database and decrypt
   - Validate order on backend (amount, balance, minimum size)
-  - Call Coinbase API to place order
+  - Call Coinbase API with user's credentials to place order
+  - Store trade record in trades table with user_id
   - Return order ID and status to frontend
   - Update portfolioStore with pending order in frontend
   - Wire up orders routes in backend/src/index.ts
-  - _Requirements: 4.4, 4.5, 12.3_
+  - _Requirements: 4.4, 4.5, 12.1, 12.2, 12.3_
 
 - [ ] 7.3 Build OrderConfirmation modal
   - Create frontend/src/components/modals/OrderConfirmation.tsx
@@ -247,11 +315,13 @@
 - [ ] 8.5 Implement portfolio data persistence
   - Create backend/src/routes/portfolio.ts with endpoints: GET /api/portfolio, GET /api/portfolio/history
   - Create backend/src/services/PortfolioService.ts
-  - Store holdings in in-memory Map (database optional for MVP)
+  - Protect routes with authentication middleware to get user_id
+  - Store holdings in portfolios and holdings tables (per user)
   - Calculate portfolio value based on current prices from market data
   - Update portfolio when orders are filled
+  - Support both real and paper trading portfolios (is_paper_trading flag)
   - Wire up portfolio routes in backend/src/index.ts
-  - _Requirements: 3.1, 3.2, 14.5_
+  - _Requirements: 3.1, 3.2, 12.1, 14.5_
 
 - [ ]\* 8.6 Add portfolio calculation tests
   - Write unit tests for P&L calculations
@@ -331,10 +401,11 @@
 
 - [ ] 10.5 Implement alert persistence
   - Create backend/src/routes/alerts.ts with endpoints: GET /api/alerts, POST /api/alerts, DELETE /api/alerts/:id, PATCH /api/alerts/:id/snooze
-  - Store alerts in in-memory Map (database optional for MVP)
-  - Load active alerts on app initialization
+  - Protect routes with authentication middleware to get user_id
+  - Store alerts in alerts table (per user)
+  - Load active alerts on app initialization for authenticated user
   - Wire up alerts routes in backend/src/index.ts
-  - _Requirements: 14.3_
+  - _Requirements: 12.1, 14.3_
 
 - [ ]\* 10.6 Add alert system tests
   - Write unit tests for alert condition checking
@@ -376,13 +447,15 @@
 
 - [ ] 11.5 Create trade history API
   - Create backend/src/routes/trades.ts with endpoint: GET /api/trades
+  - Protect route with authentication middleware to get user_id
+  - Query trades table filtered by user_id
   - Support query params for filtering (symbol, dateFrom, dateTo, type, status)
   - Support pagination with limit and offset
   - Support sorting by date, amount, P&L
   - Return total count for pagination
-  - Store trades in in-memory array (database optional for MVP)
+  - Implement 90-day data retention cleanup job
   - Wire up trades routes in backend/src/index.ts
-  - _Requirements: 5.1, 5.2, 5.3, 14.5_
+  - _Requirements: 5.1, 5.2, 5.3, 12.1, 14.5_
 
 - [ ] 12. Paper Trading Mode
 - [ ] 12.1 Implement paper trading toggle
