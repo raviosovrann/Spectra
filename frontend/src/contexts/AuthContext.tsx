@@ -1,21 +1,12 @@
-import React, { createContext, useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import axios from 'axios'
-import { User, LoginRequest, RegisterRequest, AuthResponse } from '../types/auth'
+import { User, LoginRequest, RegisterRequest } from '../types/auth'
+import { AuthContext, AuthContextType } from './AuthContext'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-interface AuthContextType {
-  user: User | null
-  token: string | null
-  isLoading: boolean
-  error: string | null
-  login: (credentials: LoginRequest) => Promise<void>
-  register: (data: RegisterRequest) => Promise<void>
-  logout: () => void
-  clearError: () => void
-}
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined)
+// Configure axios to always send credentials (cookies)
+axios.defaults.withCredentials = true
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
@@ -23,53 +14,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const verifyToken = useCallback(async (authToken: string) => {
+  const verifySession = useCallback(async () => {
     try {
       const response = await axios.get<{ user: User }>(`${API_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${authToken}` },
+        withCredentials: true, // Send cookies with request
       })
       setUser(response.data.user)
+      setToken('cookie-based') // Placeholder
     } catch (err: unknown) {
-      // Token is invalid or expired
-      localStorage.removeItem('spectra_auth_token')
+      // Session is invalid or expired
       setToken(null)
       setUser(null)
     }
   }, [])
 
-  // Initialize from localStorage on mount
+  // Initialize session on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('spectra_auth_token')
-    if (storedToken) {
-      setToken(storedToken)
-      // Verify token is still valid
-      verifyToken(storedToken).catch(() => {
-        // Token verification failed, user will be logged out
-      })
-    }
-  }, [verifyToken])
-
-  // Set up axios interceptor to include token
-  useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-    } else {
-      delete axios.defaults.headers.common['Authorization']
-    }
-  }, [token])
+    verifySession().catch(() => {
+      // Session verification failed, user will remain logged out
+    })
+  }, [verifySession])
 
   const login = useCallback(async (credentials: LoginRequest) => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const response = await axios.post<AuthResponse>(`${API_URL}/api/auth/login`, credentials)
+      const response = await axios.post<{ user: User; message: string }>(
+        `${API_URL}/api/auth/login`,
+        credentials,
+        { withCredentials: true } // Important: Send/receive cookies
+      )
 
-      const { token: newToken, user: userData } = response.data
+      const { user: userData } = response.data
 
-      setToken(newToken)
       setUser(userData)
-      localStorage.setItem('spectra_auth_token', newToken)
+      setToken('cookie-based') // Placeholder since token is in HTTP-only cookie
     } catch (err: unknown) {
       const errorMessage = axios.isAxiosError(err) ? err.response?.data?.error || err.message : 'Login failed'
       setError(errorMessage)
@@ -79,32 +59,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  const register = useCallback(async (data: RegisterRequest) => {
-    setIsLoading(true)
-    setError(null)
+  const register = useCallback(
+    async (data: RegisterRequest) => {
+      setIsLoading(true)
+      setError(null)
 
+      try {
+        await axios.post(`${API_URL}/api/auth/register`, data, {
+          withCredentials: true,
+        })
+
+        // Auto-login after registration
+        await login({
+          identifier: data.emailAddress,
+          password: data.password,
+        })
+      } catch (err: unknown) {
+        const errorMessage = axios.isAxiosError(err) ? err.response?.data?.error || err.message : 'Registration failed'
+        setError(errorMessage)
+        throw err
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [login]
+  )
+
+  const logout = useCallback(async () => {
     try {
-      await axios.post(`${API_URL}/api/auth/register`, data)
-
-      // Auto-login after registration
-      await login({
-        emailAddress: data.emailAddress,
-        password: data.password,
-      })
-    } catch (err: unknown) {
-      const errorMessage = axios.isAxiosError(err) ? err.response?.data?.error || err.message : 'Registration failed'
-      setError(errorMessage)
-      throw err
+      // Call backend logout endpoint to clear cookie
+      await axios.post(
+        `${API_URL}/api/auth/logout`,
+        {},
+        {
+          withCredentials: true,
+        }
+      )
+    } catch (err) {
+      // Even if logout fails, clear local state
+      console.error('Logout error:', err)
     } finally {
-      setIsLoading(false)
+      setToken(null)
+      setUser(null)
     }
-  }, [login])
-
-  const logout = useCallback(() => {
-    setToken(null)
-    setUser(null)
-    localStorage.removeItem('spectra_auth_token')
-    delete axios.defaults.headers.common['Authorization']
   }, [])
 
   const clearError = useCallback(() => {

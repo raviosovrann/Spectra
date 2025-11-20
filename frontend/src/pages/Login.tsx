@@ -6,8 +6,8 @@ import { useAuth } from '../hooks/useAuth'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login, isLoading, error, clearError } = useAuth()
-  const [emailAddress, setEmailAddress] = useState('')
+  const { login, isLoading, error } = useAuth()
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
 
@@ -15,13 +15,13 @@ export default function Login() {
     e.preventDefault()
     setLocalError(null)
 
-    if (!emailAddress || !password) {
-      setLocalError('Email and password are required')
+    if (!identifier || !password) {
+      setLocalError('Email/username and password are required')
       return
     }
 
     try {
-      await login({ emailAddress, password })
+      await login({ identifier, password })
       navigate('/dashboard')
     } catch (err) {
       setLocalError(error || 'Login failed. Please try again.')
@@ -81,20 +81,20 @@ export default function Login() {
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4 mt-6">
             <div>
-              <label htmlFor="emailAddress" className="block text-sm font-medium text-dark-300 mb-2">
-                Email Address
+              <label htmlFor="identifier" className="block text-sm font-medium text-dark-300 mb-2">
+                Email or Username
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-dark-500" />
                 <input
-                  id="emailAddress"
-                  type="email"
-                  value={emailAddress}
+                  id="identifier"
+                  type="text"
+                  value={identifier}
                   onChange={(e) => {
-                    setEmailAddress(e.target.value)
+                    setIdentifier(e.target.value)
                     setLocalError(null)
                   }}
-                  placeholder="your@email.com"
+                  placeholder="your@email.com or username"
                   className="w-full rounded-xl bg-dark-800 border border-dark-700 pl-11 pr-4 py-3 text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
                   required
                   disabled={isLoading}

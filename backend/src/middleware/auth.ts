@@ -8,14 +8,20 @@ export interface AuthRequest extends Request {
 
 export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const authHeader = req.headers.authorization
+    // Try to get token from cookie first (preferred), then from Authorization header
+    let token = req.cookies?.auth_token
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ error: 'Missing or invalid authorization header' })
-      return
+    if (!token) {
+      const authHeader = req.headers.authorization
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7)
+      }
     }
 
-    const token = authHeader.substring(7)
+    if (!token) {
+      res.status(401).json({ error: 'Authentication required' })
+      return
+    }
 
     const payload = await AuthService.verifyToken(token)
 
@@ -26,7 +32,7 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
   } catch (error) {
     res.status(401).json({
       error: 'Unauthorized',
-      message: error instanceof Error ? error.message : 'Invalid token',
+      message: error instanceof Error ? error.message : 'Invalid or expired token',
     })
   }
 }

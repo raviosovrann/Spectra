@@ -1,7 +1,7 @@
 import { Router, Response } from 'express'
 import AuthService from '../services/AuthService.js'
 import { authMiddleware, AuthRequest } from '../middleware/auth.js'
-import { RegisterRequest, LoginRequest } from '../types/auth.js'
+import { RegisterRequest } from '../types/auth.js'
 import logger from '../utils/logger.js'
 
 const router = Router()
@@ -72,27 +72,56 @@ router.post('/register', async (req, res: Response) => {
 // POST /api/auth/login
 router.post('/login', async (req, res: Response) => {
   try {
-    const { emailAddress, password } = req.body as LoginRequest
+    const { identifier, password } = req.body
 
     // Validate inputs
-    if (!emailAddress || !password) {
-      res.status(400).json({ error: 'Email and password are required' })
+    if (!identifier || !password) {
+      res.status(400).json({ error: 'Email/username and password are required' })
       return
     }
 
-    const { user, token } = await AuthService.login(emailAddress, password)
+    const { user, token } = await AuthService.login(identifier, password)
+
+    // Set HTTP-only cookie for secure session management
+    res.cookie('auth_token', token, {
+      httpOnly: true, // Prevents JavaScript access (XSS protection)
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: 'strict', // CSRF protection
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/',
+    })
 
     res.json({
       message: 'Login successful',
-      token,
       user,
     })
   } catch (error) {
     logger.error('Login error', { error: error instanceof Error ? error.message : String(error) })
 
     res.status(401).json({
-      error: 'Invalid email or password',
+      error: 'Invalid credentials',
     })
+  }
+})
+
+// POST /api/auth/logout
+router.post('/logout', (_req, res: Response) => {
+  try {
+    // Clear the auth cookie
+    res.clearCookie('auth_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+    })
+
+    res.json({
+      message: 'Logout successful',
+    })
+  } catch (error) {
+    logger.error('Logout error', { error: error instanceof Error ? error.message : String(error) })
+
+    res.status(500).json({ error: 'Logout failed' })
   }
 })
 

@@ -6,6 +6,9 @@ import * as dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
+// Database connection configuration
+// Uses environment variables from .env file (production/cloud)
+// Falls back to local defaults for development
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),

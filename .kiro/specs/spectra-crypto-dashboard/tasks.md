@@ -121,7 +121,7 @@
   - Add link to Settings page in dashboard header account menu
   - _Requirements: 12.1, 15.1_
 
-- [ ]\* 2.4.11 Add authentication tests
+- [ ] 2.4.11 Add authentication tests
   - Write unit tests for password hashing and JWT generation
   - Write unit tests for API credential encryption/decryption
   - Write integration tests for registration and login flows

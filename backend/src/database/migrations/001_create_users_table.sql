@@ -1,6 +1,12 @@
 -- Migration: Create spectra_user_t table
 -- Description: User authentication and Coinbase API credentials storage
 -- Created: 2025-11-17
+--
+-- NOTE: This migration assumes the database already exists.
+-- For cloud deployment, ensure your database is created first:
+--   - Railway/Heroku: Database is auto-created with addon
+--   - AWS RDS/GCP: Create database manually before running migrations
+--   - Local: Run backend/scripts/create-tables.sh
 
 CREATE TABLE IF NOT EXISTS spectra_user_t (
   user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

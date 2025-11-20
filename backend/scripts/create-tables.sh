@@ -1,6 +1,32 @@
 #!/bin/bash
 
+# Local Development Database Setup Script
 # Run this script with: sudo bash backend/scripts/create-tables.sh
+#
+# NOTE: This creates the LOCAL development database (spectra_dev)
+# For production, use environment variables to connect to your cloud database
+# Production database should be named: spectra_prod
+
+echo "Setting up spectra_dev database..."
+
+# Create database and user if they don't exist
+sudo -u postgres psql << 'EOF'
+-- Create database if it doesn't exist
+SELECT 'CREATE DATABASE spectra_dev'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'spectra_dev')\gexec
+
+-- Create user if doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_user WHERE usename = 'spectra_user') THEN
+    CREATE USER spectra_user WITH PASSWORD 'your_password';
+  END IF;
+END
+$$;
+
+-- Grant privileges
+GRANT ALL PRIVILEGES ON DATABASE spectra_dev TO spectra_user;
+EOF
 
 echo "Creating tables in spectra_dev database..."
 

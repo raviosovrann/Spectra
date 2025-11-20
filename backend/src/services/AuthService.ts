@@ -41,12 +41,15 @@ class AuthService {
     }
   }
 
-  async login(emailAddress: string, password: string): Promise<{ user: UserDTO; token: string }> {
-    // Find user by email
-    const result = await pool.query('SELECT * FROM spectra_user_t WHERE email_address = $1', [emailAddress])
+  async login(identifier: string, password: string): Promise<{ user: UserDTO; token: string }> {
+    // Smart login: Find user by email OR username
+    const result = await pool.query(
+      'SELECT * FROM spectra_user_t WHERE email_address = $1 OR username = $1',
+      [identifier]
+    )
 
     if (result.rows.length === 0) {
-      throw new Error('Invalid email or password')
+      throw new Error('Invalid credentials')
     }
 
     const user = result.rows[0]
@@ -55,14 +58,14 @@ class AuthService {
     const passwordMatch = await bcrypt.compare(password, user.password)
 
     if (!passwordMatch) {
-      throw new Error('Invalid email or password')
+      throw new Error('Invalid credentials')
     }
 
     // Update last login
     await pool.query('UPDATE spectra_user_t SET last_login = CURRENT_TIMESTAMP WHERE user_id = $1', [user.user_id])
 
     // Generate JWT token
-    const token = this.generateToken(user.user_id, user.email_address)
+    const token = this.generateToken(user.user_id, user.email_address, user.username)
 
     const userDTO: UserDTO = {
       userId: user.user_id,
@@ -71,7 +74,7 @@ class AuthService {
       emailAddress: user.email_address,
       hasCoinbaseKeys: !!user.user_coinbase_public && !!user.user_coinbase_secret,
       createdAt: user.created_at,
-      lastLogin: user.last_login,
+      lastLogin: new Date(),
     }
 
     return { user: userDTO, token }
@@ -112,7 +115,7 @@ class AuthService {
     }
   }
 
-  private generateToken(userId: string, emailAddress: string): string {
+  private generateToken(userId: string, emailAddress: string, username: string): string {
     const secret = process.env.JWT_SECRET
 
     if (!secret) {
@@ -123,6 +126,7 @@ class AuthService {
       {
         userId,
         emailAddress,
+        username,
       },
       secret,
       { expiresIn: JWT_EXPIRATION }

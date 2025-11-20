@@ -2,13 +2,11 @@ import { motion } from 'framer-motion'
 import {
   User,
   Key,
-  Wallet,
   Shield,
   Bell,
   Palette,
   Save,
   LogOut,
-  ExternalLink,
   CheckCircle,
   AlertCircle,
   ArrowLeft,
@@ -24,13 +22,11 @@ export default function ProfileView() {
     notifications,
     theme,
     paperTradingMode,
-    coinbaseCredentials,
     coinbaseConnected,
     setProfile,
     setNotifications,
     setTheme,
     setPaperTradingMode,
-    setCoinbaseCredentials,
   } = useUserStore()
 
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -38,10 +34,6 @@ export default function ProfileView() {
   const [localNotifications, setLocalNotifications] = useState(notifications)
   const [localTheme, setLocalTheme] = useState(theme)
   const [localPaperTrading, setLocalPaperTrading] = useState(paperTradingMode)
-  const [apiCredentials, setApiCredentials] = useState({
-    apiKey: coinbaseCredentials?.apiKey || '',
-    apiSecret: coinbaseCredentials?.apiSecret || '',
-  })
 
   const handleSaveSettings = () => {
     // Update Zustand store
@@ -50,18 +42,8 @@ export default function ProfileView() {
     setTheme(localTheme)
     setPaperTradingMode(localPaperTrading)
 
-    // Save Coinbase credentials if provided
-    if (apiCredentials.apiKey && apiCredentials.apiSecret) {
-      setCoinbaseCredentials(apiCredentials)
-    }
-
     setSaveSuccess(true)
     setTimeout(() => setSaveSuccess(false), 3000)
-  }
-
-  const handleDisconnectCoinbase = () => {
-    setCoinbaseCredentials(null)
-    setApiCredentials({ apiKey: '', apiSecret: '' })
   }
 
   return (
@@ -158,92 +140,6 @@ export default function ProfileView() {
               <option value="GBP">GBP</option>
               <option value="JPY">JPY</option>
             </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Coinbase Integration */}
-      <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/10">
-            <Wallet className="h-5 w-5 text-primary-400" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-white">Coinbase Integration</h2>
-            <p className="text-sm text-dark-400 mt-1">
-              Connect your Coinbase account to access real-time market data and trading
-            </p>
-          </div>
-          {coinbaseConnected && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-success-500/10 rounded-lg">
-              <CheckCircle className="h-4 w-4 text-success-400" />
-              <span className="text-success-400 text-sm font-medium">Connected</span>
-            </div>
-          )}
-        </div>
-
-        {!coinbaseConnected && (
-          <div className="mb-6 p-4 bg-warning-500/10 border border-warning-500/20 rounded-xl flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-warning-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-warning-400">
-              <p className="font-medium mb-1">Coinbase account required</p>
-              <p>
-                You need to connect your Coinbase account to access real-time market data and
-                execute trades. Without connection, you can only use paper trading mode with mock
-                data.
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-dark-300 mb-2">
-              Coinbase API Key
-            </label>
-            <input
-              type="text"
-              value={apiCredentials.apiKey}
-              onChange={(e) =>
-                setApiCredentials({ ...apiCredentials, apiKey: e.target.value })
-              }
-              placeholder="Enter your Coinbase API Key"
-              className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-xl text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-dark-300 mb-2">
-              Coinbase API Secret
-            </label>
-            <input
-              type="password"
-              value={apiCredentials.apiSecret}
-              onChange={(e) =>
-                setApiCredentials({ ...apiCredentials, apiSecret: e.target.value })
-              }
-              placeholder="Enter your Coinbase API Secret"
-              className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-xl text-white placeholder-dark-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <a
-              href="https://www.coinbase.com/settings/api"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-primary-400 hover:text-primary-300 text-sm font-medium transition-colors"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Get API credentials from Coinbase
-            </a>
-            {coinbaseConnected && (
-              <button
-                onClick={handleDisconnectCoinbase}
-                className="ml-auto flex items-center gap-2 px-4 py-2 bg-danger-500/10 hover:bg-danger-500/20 text-danger-400 rounded-lg text-sm font-medium transition-all"
-              >
-                Disconnect Account
-              </button>
-            )}
           </div>
         </div>
       </div>

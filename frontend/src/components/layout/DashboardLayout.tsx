@@ -115,10 +115,10 @@ export default function DashboardLayout() {
               </button>
 
               {/* Account Menu (Desktop) */}
-              <div className="hidden md:relative" ref={accountMenuRef}>
+              <div className="relative" ref={accountMenuRef}>
                 <button
                   onClick={() => setAccountMenuOpen(!accountMenuOpen)}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white font-semibold cursor-pointer hover:scale-105 transition-transform"
+                  className="hidden md:flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white font-semibold cursor-pointer hover:scale-105 transition-transform"
                   aria-label="Account menu"
                 >
                   {user?.fullName.charAt(0).toUpperCase() || 'U'}
