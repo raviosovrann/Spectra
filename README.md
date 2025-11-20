@@ -97,6 +97,30 @@ npm run lint
 npm run format
 ```
 
+### Testing
+
+Run the test suite:
+
+```bash
+# Run all tests
+cd backend
+npm test
+
+# Run tests once (no watch mode)
+npm test -- --run
+
+# Run with coverage
+npm test -- --coverage --run
+
+# Run specific test file
+npm test -- tests/unit/auth.test.ts --run
+
+# Run tests with UI
+npm test:ui
+```
+
+For detailed testing documentation, see [docs/TESTING.md](docs/TESTING.md)
+
 ## Environment Variables
 
 ### Frontend (`frontend/.env`)

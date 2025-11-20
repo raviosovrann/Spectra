@@ -1,5 +1,35 @@
 # Implementation Plan
 
+## Current Status Summary
+
+**Completed:**
+- ✅ Project setup with monorepo structure (frontend/backend)
+- ✅ Landing page with Hero, Features, and other sections
+- ✅ User authentication system (registration, login, JWT tokens, HTTP-only cookies)
+- ✅ Database setup with PostgreSQL and user table migration
+- ✅ Password hashing with bcrypt and API credential encryption with AES-256-GCM
+- ✅ Authentication routes and middleware
+- ✅ User management routes (profile, Coinbase keys)
+- ✅ Frontend authentication context with cookie-based sessions
+- ✅ Login and Signup pages with real authentication
+- ✅ Protected routes implementation
+- ✅ Settings page for Coinbase API credentials
+- ✅ Dashboard layout with horizontal tab navigation (Robinhood-style)
+- ✅ Frontend page placeholders with mock data (Investing, Trading, Portfolio, Insights, Alerts, History)
+- ✅ Coinbase REST API client with HMAC authentication
+- ✅ WebSocket manager for Coinbase connection with reconnection logic
+- ✅ Express server with CORS, health check, and error handling
+
+**Next Steps:**
+- Create WebSocket server for frontend clients to receive real-time market data
+- Implement market data relay from Coinbase to frontend
+- Create database migrations for portfolios, holdings, trades, and alerts tables
+- Build AI analysis engine for technical indicators and insights
+- Implement real-time data integration with Zustand stores
+- Connect frontend pages to real backend APIs
+
+---
+
 - [x] 1. Project Setup and Configuration
   - Initialize monorepo structure with frontend and backend directories
   - Configure TypeScript for both frontend (React) and backend (Node.js)
@@ -119,6 +149,7 @@
   - Implement save functionality that calls PATCH /api/users/coinbase-keys
   - Display success/error messages
   - Add link to Settings page in dashboard header account menu
+  - Note: ProfileView.tsx also exists for viewing user profile information
   - _Requirements: 12.1, 15.1_
 
 - [ ] 2.4.11 Add authentication tests
@@ -139,14 +170,15 @@
   - _Requirements: 9.5, 14.1_
 
 - [x] 2.6 Create Frontend Page Placeholders with Mock Data
-  - Create frontend/src/pages/InvestingView.tsx with heatmap grid using mock data
-  - Create frontend/src/pages/TradingView.tsx with order form UI using mock data
-  - Create frontend/src/pages/PortfolioView.tsx with holdings table and charts using mock data
-  - Create frontend/src/pages/InsightsView.tsx with AI insights cards using mock data
-  - Create frontend/src/pages/AlertsView.tsx with alerts list using mock data
-  - Create frontend/src/pages/HistoryView.tsx with trade history table using mock data
-  - Create frontend/src/data/mockData.ts with sample cryptocurrency, portfolio, trade, insight, and alert data
-  - Create frontend/src/stores/userStore.ts for theme and user preferences
+  - Create frontend/src/pages/InvestingView.tsx with heatmap grid using mock data ✅
+  - Create frontend/src/pages/TradingView.tsx with order form UI using mock data ✅
+  - Create frontend/src/pages/PortfolioView.tsx with holdings table and charts using mock data ✅
+  - Create frontend/src/pages/InsightsView.tsx with AI insights cards using mock data ✅
+  - Create frontend/src/pages/AlertsView.tsx with alerts list using mock data ✅
+  - Create frontend/src/pages/HistoryView.tsx with trade history table using mock data ✅
+  - Create frontend/src/data/mockData.ts with sample cryptocurrency, portfolio, trade, insight, and alert data ✅
+  - Create frontend/src/stores/userStore.ts for theme and user preferences ✅
+  - Note: All pages are fully functional with mock data and beautiful UI
   - _Requirements: 1.1, 3.1, 4.1, 5.1, 7.1, 8.1, 9.5_
 
 - [ ] 3. Backend WebSocket Server for Frontend Communication
@@ -167,6 +199,14 @@
   - Normalize and enrich data before broadcasting (add timestamps, format numbers)
   - Wire up MarketDataRelay in backend/src/index.ts
   - _Requirements: 2.2, 2.4, 11.1, 11.2_
+
+- [ ] 3.3 Create database migrations for portfolios, holdings, trades, and alerts
+  - Create backend/src/database/migrations/002_create_portfolios_table.sql
+  - Create backend/src/database/migrations/003_create_holdings_table.sql
+  - Create backend/src/database/migrations/004_create_trades_table.sql
+  - Create backend/src/database/migrations/005_create_alerts_table.sql
+  - Run migrations to create tables in database
+  - _Requirements: 12.1, 14.5_
 
 - [ ] 4. AI Analysis Engine
 - [ ] 4.1 Implement technical indicator calculations
@@ -246,9 +286,9 @@
   - Create backend/src/routes/orders.ts with placeOrder endpoint (POST /api/orders)
   - Create backend/src/services/OrderService.ts for order logic
   - Protect route with authentication middleware to get user_id
-  - Retrieve user's Coinbase API credentials from database and decrypt
+  - Retrieve user's Coinbase API credentials from database and decrypt using decryptApiKey
   - Validate order on backend (amount, balance, minimum size)
-  - Call Coinbase API with user's credentials to place order
+  - Call Coinbase API with user's credentials to place order using CoinbaseClient
   - Store trade record in trades table with user_id
   - Return order ID and status to frontend
   - Update portfolioStore with pending order in frontend
@@ -316,7 +356,7 @@
   - Create backend/src/routes/portfolio.ts with endpoints: GET /api/portfolio, GET /api/portfolio/history
   - Create backend/src/services/PortfolioService.ts
   - Protect routes with authentication middleware to get user_id
-  - Store holdings in portfolios and holdings tables (per user)
+  - Query holdings from portfolios and holdings tables (per user)
   - Calculate portfolio value based on current prices from market data
   - Update portfolio when orders are filled
   - Support both real and paper trading portfolios (is_paper_trading flag)
@@ -401,6 +441,7 @@
 
 - [ ] 10.5 Implement alert persistence
   - Create backend/src/routes/alerts.ts with endpoints: GET /api/alerts, POST /api/alerts, DELETE /api/alerts/:id, PATCH /api/alerts/:id/snooze
+  - Create backend/src/services/AlertService.ts for alert logic
   - Protect routes with authentication middleware to get user_id
   - Store alerts in alerts table (per user)
   - Load active alerts on app initialization for authenticated user
@@ -447,6 +488,7 @@
 
 - [ ] 11.5 Create trade history API
   - Create backend/src/routes/trades.ts with endpoint: GET /api/trades
+  - Create backend/src/services/TradeService.ts for trade history logic
   - Protect route with authentication middleware to get user_id
   - Query trades table filtered by user_id
   - Support query params for filtering (symbol, dateFrom, dateTo, type, status)
@@ -597,6 +639,7 @@
   - _Requirements: 12.5_
 
 - [ ] 18.2 Add rate limiting
+  - Install express-rate-limit package
   - Update backend/src/index.ts to use express-rate-limit middleware
   - Configure limit: 100 requests per 15 minutes per IP
   - Return 429 status with retry-after header
@@ -604,7 +647,7 @@
   - _Requirements: 12.3_
 
 - [ ] 18.3 Secure WebSocket connections
-  - Implement WebSocket authentication (token-based, optional for MVP)
+  - Implement WebSocket authentication using JWT tokens from cookies
   - Validate origin header in WebSocket server to prevent CSRF
   - Limit connections per IP (5 max) in FrontendWebSocketServer
   - _Requirements: 12.4_
