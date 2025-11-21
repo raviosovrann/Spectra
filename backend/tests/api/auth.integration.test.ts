@@ -473,4 +473,202 @@ describe('Auth API Integration Tests', () => {
       expect(logoutResponse.status).toBe(200)
     })
   })
+
+  describe('Session Persistence', () => {
+    it('should maintain session after simulated page refresh', async () => {
+      const password = 'Password123'
+      const hashedPassword = await bcrypt.hash(password, 10)
+
+      const mockUser = {
+        user_id: '123e4567-e89b-12d3-a456-426614174000',
+        full_name: 'Test User',
+        username: 'testuser',
+        email_address: 'test@example.com',
+        password: hashedPassword,
+        user_coinbase_public: null,
+        user_coinbase_secret: null,
+        created_at: new Date(),
+        last_login: new Date(),
+        is_active: true,
+      }
+
+      // Step 1: Login
+      vi.mocked(pool.query)
+        .mockImplementationOnce(() => mockQueryResult([mockUser]))
+        .mockImplementationOnce(() => mockQueryResult([]))
+
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({
+          identifier: 'test@example.com',
+          password: password,
+        })
+
+      expect(loginResponse.status).toBe(200)
+      const cookies = loginResponse.headers['set-cookie'] as unknown as string[]
+      expect(cookies).toBeDefined()
+
+      // Step 2: Simulate page refresh - verify session with cookie
+      vi.mocked(pool.query).mockImplementationOnce(() => mockQueryResult([mockUser]))
+
+      const sessionCheckResponse = await request(app)
+        .get('/api/auth/me')
+        .set('Cookie', cookies)
+
+      expect(sessionCheckResponse.status).toBe(200)
+      expect(sessionCheckResponse.body.user.userId).toBe(mockUser.user_id)
+      expect(sessionCheckResponse.body.user.emailAddress).toBe(mockUser.email_address)
+    })
+
+    it('should persist session across multiple requests', async () => {
+      const password = 'Password123'
+      const hashedPassword = await bcrypt.hash(password, 10)
+
+      const mockUser = {
+        user_id: '123e4567-e89b-12d3-a456-426614174000',
+        full_name: 'Test User',
+        username: 'testuser',
+        email_address: 'test@example.com',
+        password: hashedPassword,
+        user_coinbase_public: null,
+        user_coinbase_secret: null,
+        created_at: new Date(),
+        last_login: new Date(),
+        is_active: true,
+      }
+
+      // Login
+      vi.mocked(pool.query)
+        .mockImplementationOnce(() => mockQueryResult([mockUser]))
+        .mockImplementationOnce(() => mockQueryResult([]))
+
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({
+          identifier: 'test@example.com',
+          password: password,
+        })
+
+      const cookies = loginResponse.headers['set-cookie'] as unknown as string[]
+
+      // Make multiple authenticated requests with same cookie
+      for (let i = 0; i < 3; i++) {
+        vi.mocked(pool.query).mockImplementationOnce(() => mockQueryResult([mockUser]))
+
+        const response = await request(app)
+          .get('/api/auth/me')
+          .set('Cookie', cookies)
+
+        expect(response.status).toBe(200)
+        expect(response.body.user.userId).toBe(mockUser.user_id)
+      }
+    })
+
+    it('should reject requests after logout', async () => {
+      const password = 'Password123'
+      const hashedPassword = await bcrypt.hash(password, 10)
+
+      const mockUser = {
+        user_id: '123e4567-e89b-12d3-a456-426614174000',
+        full_name: 'Test User',
+        username: 'testuser',
+        email_address: 'test@example.com',
+        password: hashedPassword,
+        user_coinbase_public: null,
+        user_coinbase_secret: null,
+        created_at: new Date(),
+        last_login: new Date(),
+        is_active: true,
+      }
+
+      // Login
+      vi.mocked(pool.query)
+        .mockImplementationOnce(() => mockQueryResult([mockUser]))
+        .mockImplementationOnce(() => mockQueryResult([]))
+
+      const loginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({
+          identifier: 'test@example.com',
+          password: password,
+        })
+
+      const cookies = loginResponse.headers['set-cookie'] as unknown as string[]
+
+      // Verify session works
+      vi.mocked(pool.query).mockImplementationOnce(() => mockQueryResult([mockUser]))
+
+      const beforeLogout = await request(app)
+        .get('/api/auth/me')
+        .set('Cookie', cookies)
+
+      expect(beforeLogout.status).toBe(200)
+
+      // Logout
+      const logoutResponse = await request(app)
+        .post('/api/auth/logout')
+        .set('Cookie', cookies)
+
+      expect(logoutResponse.status).toBe(200)
+
+      // Get cleared cookies from logout response
+      const clearedCookies = logoutResponse.headers['set-cookie'] as unknown as string[]
+      expect(clearedCookies[0]).toContain('auth_token=;')
+
+      // Try to access protected route after logout
+      const afterLogout = await request(app)
+        .get('/api/auth/me')
+        .set('Cookie', clearedCookies)
+
+      expect(afterLogout.status).toBe(401)
+    })
+
+    it('should set cookie with correct attributes in development', async () => {
+      const password = 'Password123'
+      const hashedPassword = await bcrypt.hash(password, 10)
+
+      const mockUser = {
+        user_id: '123e4567-e89b-12d3-a456-426614174000',
+        full_name: 'Test User',
+        username: 'testuser',
+        email_address: 'test@example.com',
+        password: hashedPassword,
+        user_coinbase_public: null,
+        user_coinbase_secret: null,
+        created_at: new Date(),
+        is_active: true,
+      }
+
+      vi.mocked(pool.query)
+        .mockImplementationOnce(() => mockQueryResult([mockUser]))
+        .mockImplementationOnce(() => mockQueryResult([]))
+
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({
+          identifier: 'test@example.com',
+          password: password,
+        })
+
+      const cookies = response.headers['set-cookie'] as unknown as string[]
+      const authCookie = cookies[0]
+
+      // Verify cookie attributes
+      expect(authCookie).toContain('auth_token=')
+      expect(authCookie).toContain('HttpOnly')
+      expect(authCookie).toContain('Path=/')
+      expect(authCookie).toContain('SameSite=Lax') // Lax in development
+      expect(authCookie).not.toContain('Secure') // Not secure in development
+    })
+
+    it('should handle expired or invalid cookies gracefully', async () => {
+      // Try to access protected route with invalid cookie
+      const response = await request(app)
+        .get('/api/auth/me')
+        .set('Cookie', ['auth_token=invalid_token_here'])
+
+      expect(response.status).toBe(401)
+      expect(response.body.error).toBe('Unauthorized')
+    })
+  })
 })

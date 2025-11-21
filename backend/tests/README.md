@@ -33,7 +33,7 @@ backend/tests/
 
 ## Test Statistics
 
-- **Total Tests**: 59 passing
+- **Total Tests**: 66 passing
 - **Test Files**: 4
 - **Test Framework**: Vitest
 - **HTTP Testing**: Supertest
@@ -87,10 +87,11 @@ npm test -- -t "Password Hashing" --run
 
 ### Current Coverage
 
-- **Authentication Service**: Password hashing, JWT generation, registration, login, token verification
+- **Authentication Service**: Password hashing, JWT generation, registration, login, token verification, session persistence
 - **Encryption Utilities**: API key encryption/decryption with AES-256-GCM
 - **Authentication Middleware**: Token validation from cookies and headers
-- **Auth API Endpoints**: Complete registration and login flows
+- **Auth API Endpoints**: Complete registration and login flows, session persistence across requests
+- **Session Management**: Cookie-based session persistence, logout behavior, cookie attributes
 
 ### Generate Coverage Report
 

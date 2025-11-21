@@ -299,4 +299,34 @@ describe('AuthService - Token Verification', () => {
       AuthService.verifyToken(token)
     ).rejects.toThrow('Invalid or expired token')
   })
+
+  it('should verify token with 24 hour expiration for session persistence', async () => {
+    const token = jwt.sign(
+      { userId: mockUserId, emailAddress: mockEmail, username: mockUsername },
+      process.env.JWT_SECRET!,
+      { expiresIn: '24h' }
+    )
+
+    const payload = await AuthService.verifyToken(token)
+    const now = Math.floor(Date.now() / 1000)
+    const expectedExpiry = now + (24 * 60 * 60)
+
+    expect(payload.exp).toBeGreaterThan(now)
+    expect(payload.exp).toBeLessThanOrEqual(expectedExpiry + 5)
+  })
+
+  it('should maintain user session across multiple verifications', async () => {
+    const token = jwt.sign(
+      { userId: mockUserId, emailAddress: mockEmail, username: mockUsername },
+      process.env.JWT_SECRET!,
+      { expiresIn: '24h' }
+    )
+
+    // Verify token multiple times (simulating page refreshes)
+    for (let i = 0; i < 5; i++) {
+      const payload = await AuthService.verifyToken(token)
+      expect(payload.userId).toBe(mockUserId)
+      expect(payload.emailAddress).toBe(mockEmail)
+    }
+  })
 })

@@ -11,7 +11,7 @@ axios.defaults.withCredentials = true
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // Start as loading
   const [error, setError] = useState<string | null>(null)
 
   const verifySession = useCallback(async () => {
@@ -21,18 +21,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       setUser(response.data.user)
       setToken('cookie-based') // Placeholder
+      console.log('Session verified successfully', response.data.user)
+      return true
     } catch (err: unknown) {
       // Session is invalid or expired
+      console.log('Session verification failed', err)
       setToken(null)
       setUser(null)
+      return false
     }
   }, [])
 
   // Initialize session on mount
   useEffect(() => {
-    verifySession().catch(() => {
-      // Session verification failed, user will remain logged out
-    })
+    const initAuth = async () => {
+      setIsLoading(true)
+      await verifySession()
+      setIsLoading(false)
+    }
+    
+    initAuth()
   }, [verifySession])
 
   const login = useCallback(async (credentials: LoginRequest) => {

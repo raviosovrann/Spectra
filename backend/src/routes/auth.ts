@@ -83,13 +83,20 @@ router.post('/login', async (req, res: Response) => {
     const { user, token } = await AuthService.login(identifier, password)
 
     // Set HTTP-only cookie for secure session management
-    res.cookie('auth_token', token, {
+    const cookieOptions: any = {
       httpOnly: true, // Prevents JavaScript access (XSS protection)
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      sameSite: 'strict', // CSRF protection
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // CSRF protection (lax for dev)
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       path: '/',
-    })
+    }
+    
+    // In development, don't set domain to allow cross-port cookies on localhost
+    if (process.env.NODE_ENV === 'production' && process.env.COOKIE_DOMAIN) {
+      cookieOptions.domain = process.env.COOKIE_DOMAIN
+    }
+    
+    res.cookie('auth_token', token, cookieOptions)
 
     res.json({
       message: 'Login successful',
@@ -108,12 +115,18 @@ router.post('/login', async (req, res: Response) => {
 router.post('/logout', (_req, res: Response) => {
   try {
     // Clear the auth cookie
-    res.clearCookie('auth_token', {
+    const cookieOptions: any = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
       path: '/',
-    })
+    }
+    
+    if (process.env.NODE_ENV === 'production' && process.env.COOKIE_DOMAIN) {
+      cookieOptions.domain = process.env.COOKIE_DOMAIN
+    }
+    
+    res.clearCookie('auth_token', cookieOptions)
 
     res.json({
       message: 'Logout successful',
