@@ -172,7 +172,8 @@ App
 │   ├── TradeSearch (search by ID or symbol)
 │   └── ExportButton (CSV export)
 ├── Settings
-│   ├── CoinbaseCredentialsForm (API key and secret input)
+│   ├── CoinbaseCredentialsForm (API key and secret input with ECDSA support)
+│   ├── WalletSection (Coinbase account balances, deposit/withdraw info)
 │   ├── AccountInformation (display user profile data)
 │   └── SecurityNotice (encryption and security information)
 └── Shared Components
@@ -245,6 +246,25 @@ interface MarketInsight {
 }
 ```
 
+**WalletSection Component:**
+
+```typescript
+interface WalletSectionProps {
+  accounts: CoinbaseAccount[]
+  isLoading: boolean
+  onRefresh: () => Promise<void>
+}
+
+interface CoinbaseAccount {
+  uuid: string
+  name: string
+  currency: string
+  availableBalance: number
+  hold: number
+  type: 'wallet' | 'vault'
+}
+```
+
 ### Backend Service Interfaces
 
 **WebSocket Manager:**
@@ -294,12 +314,21 @@ interface VolumeAnalysis {
 
 ```typescript
 interface CoinbaseClient {
-  authenticate(apiKey: string, apiSecret: string): void
+  authenticate(apiKey: string, apiSecret: string, signatureType?: 'hmac' | 'ecdsa'): void
   getAccounts(): Promise<Account[]>
   placeOrder(order: OrderRequest): Promise<OrderResponse>
   getOrder(orderId: string): Promise<Order>
   cancelOrder(orderId: string): Promise<void>
   getProducts(): Promise<Product[]>
+}
+
+interface Account {
+  uuid: string
+  name: string
+  currency: string
+  availableBalance: number
+  hold: number
+  type: 'wallet' | 'vault'
 }
 
 interface OrderResponse {
@@ -310,6 +339,11 @@ interface OrderResponse {
   fees: number
 }
 ```
+
+**Note on Signature Types:**
+- **HMAC SHA256**: Traditional Coinbase API keys (legacy format)
+- **ECDSA**: Coinbase Developer Platform (CDP) keys using EC private keys (newer format)
+- The system auto-detects signature type based on key format (`BEGIN EC PRIVATE KEY` = ECDSA)
 
 ## Data Models
 
@@ -1341,10 +1375,42 @@ interface JWTPayload {
 - Never store plain text passwords
 - Implement password strength requirements (min 8 characters, uppercase, lowercase, number)
 
-**Coinbase API Authentication (HMAC Signature):**
+**Coinbase API Authentication (HMAC & ECDSA Signatures):**
 
-Each user stores their own Coinbase API credentials encrypted in the database. When making Coinbase API requests, the backend retrieves the user's credentials and generates HMAC signatures.
+Each user stores their own Coinbase API credentials encrypted in the database. When making Coinbase API requests, the backend retrieves the user's credentials and generates signatures based on the key type.
 
+**HMAC SHA256 (Legacy Coinbase API Keys):**
+```typescript
+function generateHMACSignature(
+  timestamp: number,
+  method: string,
+  path: string,
+  body: string,
+  secret: string
+): string {
+  const message = `${timestamp}${method}${path}${body}`
+  return crypto.createHmac('sha256', secret).update(message).digest('hex')
+}
+```
+
+**ECDSA (Coinbase Developer Platform Keys):**
+```typescript
+function generateECDSASignature(
+  timestamp: number,
+  method: string,
+  path: string,
+  body: string,
+  privateKey: string
+): string {
+  const message = `${timestamp}${method}${path}${body}`
+  const sign = crypto.createSign('SHA256')
+  sign.update(message)
+  sign.end()
+  return sign.sign(privateKey, 'hex')
+}
+```
+
+**Auto-Detection:**
 ```typescript
 function generateCoinbaseSignature(
   timestamp: number,
@@ -1354,6 +1420,16 @@ function generateCoinbaseSignature(
   secret: string
 ): string {
   const message = `${timestamp}${method}${path}${body}`
+  
+  // Detect ECDSA format (EC PRIVATE KEY)
+  if (secret.includes('BEGIN EC PRIVATE KEY')) {
+    const sign = crypto.createSign('SHA256')
+    sign.update(message)
+    sign.end()
+    return sign.sign(secret, 'hex')
+  }
+  
+  // Default to HMAC SHA256
   return crypto.createHmac('sha256', secret).update(message).digest('hex')
 }
 
@@ -1364,7 +1440,7 @@ const signature = generateCoinbaseSignature(
   'POST',
   '/api/v3/brokerage/orders',
   JSON.stringify(orderData),
-  userCoinbaseSecret // Retrieved from database
+  userCoinbaseSecret // Retrieved from database and decrypted
 )
 ```
 

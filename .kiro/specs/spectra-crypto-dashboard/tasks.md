@@ -66,6 +66,14 @@
   - Create backend/src/types/coinbase.ts for type definitions
   - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5, 12.2_
 
+- [ ] 2.2.1 Add ECDSA signature support to CoinbaseClient
+  - Update backend/src/services/CoinbaseClient.ts to detect key format (HMAC vs ECDSA)
+  - Implement ECDSA signature generation using crypto.createSign('SHA256')
+  - Auto-detect signature type based on key format (BEGIN EC PRIVATE KEY = ECDSA)
+  - Test with both HMAC and ECDSA API keys
+  - Update backend/src/types/coinbase.ts to include signatureType field
+  - _Requirements: 15.1, 12.2_
+
 - [x] 2.3 Implement WebSocket connection to Coinbase
   - Create backend/src/services/WebSocketManager.ts with connection lifecycle management
   - Implement exponential backoff reconnection (1s, 2s, 4s... up to 60s max)
@@ -152,7 +160,29 @@
   - Note: ProfileView.tsx also exists for viewing user profile information
   - _Requirements: 12.1, 15.1_
 
-- [ ] 2.4.11 Add authentication tests
+- [ ] 2.4.11 Add Wallet section to Settings page
+  - Create frontend/src/components/settings/WalletSection.tsx component
+  - Display Coinbase account balances fetched from GET /api/wallet/accounts
+  - Show available balance, held funds, and account type for each currency
+  - Add refresh button to reload balances
+  - Display loading state while fetching accounts
+  - Show empty state if no API keys configured
+  - Add helpful text about depositing/withdrawing funds via Coinbase
+  - Integrate WalletSection into Settings.tsx below CoinbaseCredentialsForm
+  - _Requirements: 15.2, 12.1_
+
+- [ ] 2.4.12 Create wallet API endpoints
+  - Create backend/src/routes/wallet.ts with endpoint: GET /api/wallet/accounts
+  - Protect route with authentication middleware to get user_id
+  - Retrieve user's encrypted Coinbase API credentials from database
+  - Decrypt credentials and initialize CoinbaseClient
+  - Call client.getAccounts() to fetch account balances
+  - Return account data to frontend
+  - Handle errors gracefully (invalid keys, API errors)
+  - Wire up wallet routes in backend/src/index.ts
+  - _Requirements: 15.2, 12.1, 12.2_
+
+- [ ] 2.4.13 Add authentication tests
   - Write unit tests for password hashing and JWT generation
   - Write unit tests for API credential encryption/decryption
   - Write integration tests for registration and login flows

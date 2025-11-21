@@ -3,6 +3,7 @@ import { Key, Save, AlertCircle, CheckCircle } from 'lucide-react'
 import { useState } from 'react'
 import axios from 'axios'
 import { useAuth } from '../hooks/useAuth'
+import WalletSection from '../components/settings/WalletSection'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -186,6 +187,9 @@ export default function Settings() {
             </button>
           </form>
         </motion.div>
+
+        {/* Wallet Section */}
+        <WalletSection />
 
         {/* Account Information */}
         <motion.div
