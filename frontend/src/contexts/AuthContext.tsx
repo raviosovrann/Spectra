@@ -21,11 +21,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       setUser(response.data.user)
       setToken('cookie-based') // Placeholder
-      console.log('Session verified successfully', response.data.user)
       return true
     } catch (err: unknown) {
       // Session is invalid or expired
-      console.log('Session verification failed', err)
       setToken(null)
       setUser(null)
       return false

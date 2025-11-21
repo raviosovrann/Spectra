@@ -6,6 +6,16 @@ import logger from '../utils/logger.js'
 
 const router = Router()
 
+// Cookie options interface
+interface CookieOptions {
+  httpOnly: boolean
+  secure: boolean
+  sameSite: 'strict' | 'lax' | 'none'
+  maxAge?: number
+  path: string
+  domain?: string
+}
+
 // Validation helpers
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -83,7 +93,7 @@ router.post('/login', async (req, res: Response) => {
     const { user, token } = await AuthService.login(identifier, password)
 
     // Set HTTP-only cookie for secure session management
-    const cookieOptions: any = {
+    const cookieOptions: CookieOptions = {
       httpOnly: true, // Prevents JavaScript access (XSS protection)
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // CSRF protection (lax for dev)
@@ -115,7 +125,7 @@ router.post('/login', async (req, res: Response) => {
 router.post('/logout', (_req, res: Response) => {
   try {
     // Clear the auth cookie
-    const cookieOptions: any = {
+    const cookieOptions: CookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
