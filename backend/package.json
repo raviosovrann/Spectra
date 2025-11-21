@@ -8,12 +8,15 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "migrate": "tsx src/database/runMigration.ts",
+    "test:coinbase": "vitest --run tests/api/coinbase-connection.test.ts",
+    "debug:coinbase": "tsx src/scripts/debug-coinbase-auth.ts",
     "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
     "test": "vitest",
     "test:run": "vitest --run",
     "test:ui": "vitest --ui"
   },
   "dependencies": {
+    "@coinbase/cdp-sdk": "^1.38.6",
     "bcrypt": "^5.1.1",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",

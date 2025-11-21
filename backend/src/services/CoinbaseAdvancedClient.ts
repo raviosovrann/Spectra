@@ -19,67 +19,75 @@ interface RetryConfig {
   baseDelay: number
 }
 
-export class CoinbaseClient {
-  private readonly apiKey: string
-  private readonly apiSecret: string
+/**
+ * Coinbase Advanced Trading API Client
+ * Supports both CDP API Keys (JWT) and Legacy API Keys (HMAC)
+ * 
+ * Documentation:
+ * - Advanced Trading API: https://docs.cdp.coinbase.com/advanced-trade/docs/welcome
+ * - CDP Authentication: https://docs.cdp.coinbase.com/coinbase-app/docs/api-key-authentication
+ */
+export class CoinbaseAdvancedClient {
+  private readonly apiKeyName: string
+  private readonly privateKey: string
   private readonly baseUrl: string
   private readonly retryConfig: RetryConfig
   private requestCount: number = 0
   private requestWindowStart: number = Date.now()
   private readonly maxRequestsPerMinute: number = 30
-  private readonly isCDPKey: boolean
 
-  constructor(apiKey: string, apiSecret: string, baseUrl?: string) {
-    this.apiKey = apiKey
-    this.apiSecret = apiSecret
+  constructor(apiKeyName: string, privateKey: string, baseUrl?: string) {
+    this.apiKeyName = apiKeyName
+    this.privateKey = privateKey
     this.baseUrl = baseUrl || 'https://api.coinbase.com'
     this.retryConfig = {
       maxAttempts: 3,
       baseDelay: 1000, // 1 second
     }
-    // Detect if this is a CDP key (contains 'organizations/' prefix)
-    this.isCDPKey = apiKey.startsWith('organizations/')
   }
 
   /**
-   * Generate JWT token for CDP API authentication
+   * Generate JWT token for CDP API Key authentication
+   * Based on: https://docs.cdp.coinbase.com/coinbase-app/docs/api-key-authentication#typescript
    */
-  private generateCDPJWT(method: string, path: string): string {
+  private generateJWT(requestMethod: string, requestPath: string): string {
+    const algorithm = 'ES256'
+    // URI format: "METHOD api.coinbase.com/path" (without https://)
+    const uri = `${requestMethod} ${this.baseUrl.replace('https://', '')}${requestPath}`
+    
+    // Extract just the UUID from the API key name (last part after /)
+    const kid = this.apiKeyName.split('/').pop() || this.apiKeyName
+    
+    // JWT Header
     const header = {
-      alg: 'ES256',
-      typ: 'JWT',
-      kid: this.apiKey,
-      nonce: crypto.randomBytes(16).toString('hex'),
+      alg: algorithm,
+      kid: kid,
+      nonce: crypto.randomBytes(16).toString('hex')
     }
 
+    // JWT Payload
     const now = Math.floor(Date.now() / 1000)
     const payload = {
-      sub: this.apiKey,
+      sub: kid,
       iss: 'coinbase-cloud',
       nbf: now,
-      exp: now + 120, // 2 minutes
-      aud: ['cdp_service'],
+      exp: now + 120, // Token expires in 2 minutes
+      uri: uri
     }
 
+    // Encode header and payload
     const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url')
     const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url')
-    const message = `${encodedHeader}.${encodedPayload}`
+    const unsignedToken = `${encodedHeader}.${encodedPayload}`
 
+    // Sign with private key using ECDSA
     const sign = crypto.createSign('SHA256')
-    sign.update(message)
+    sign.update(unsignedToken)
     sign.end()
-    const signature = sign.sign(this.apiSecret, 'base64url')
+    const signature = sign.sign(this.privateKey, 'base64url')
 
-    return `${message}.${signature}`
-  }
-
-  /**
-   * Generate signature for API request authentication (Legacy keys only)
-   * Supports HMAC SHA256 for legacy Coinbase API keys
-   */
-  private generateSignature(timestamp: string, method: string, path: string, body: string): string {
-    const message = timestamp + method + path + body
-    return crypto.createHmac('sha256', this.apiSecret).update(message).digest('hex')
+    // Return complete JWT
+    return `${unsignedToken}.${signature}`
   }
 
   /**
@@ -109,34 +117,19 @@ export class CoinbaseClient {
   }
 
   /**
-   * Make authenticated request to Coinbase API with retry logic
+   * Make authenticated request to Coinbase Advanced Trading API
    */
   private async makeRequest<T>(options: RequestOptions, attempt: number = 1): Promise<T> {
     await this.checkRateLimit()
 
     const { method, path, body = '' } = options
     
-    let headers: Record<string, string>
-
-    if (this.isCDPKey) {
-      // CDP API authentication using JWT
-      const jwt = this.generateCDPJWT(method, path)
-      
-      headers = {
-        'Authorization': `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-      }
-    } else {
-      // Legacy Coinbase API authentication using HMAC
-      const timestamp = Math.floor(Date.now() / 1000).toString()
-      const signature = this.generateSignature(timestamp, method, path, body)
-      
-      headers = {
-        'CB-ACCESS-KEY': this.apiKey,
-        'CB-ACCESS-SIGN': signature,
-        'CB-ACCESS-TIMESTAMP': timestamp,
-        'Content-Type': 'application/json',
-      }
+    // Generate JWT for authentication
+    const jwt = this.generateJWT(method, path)
+    
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${jwt}`,
+      'Content-Type': 'application/json',
     }
 
     try {
@@ -154,7 +147,7 @@ export class CoinbaseClient {
       try {
         data = JSON.parse(responseText)
       } catch (parseError) {
-        throw new Error(`Invalid JSON response from Coinbase API: ${responseText.substring(0, 200)}`)
+        throw new Error(`Invalid JSON response from Coinbase API (${response.status}): ${responseText.substring(0, 200)}`)
       }
 
       if (!response.ok) {

@@ -6,6 +6,7 @@ import logger from './utils/logger.js'
 import pool from './database/config.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
+import walletRoutes from './routes/wallet.js'
 
 // Load environment variables
 dotenv.config()
@@ -26,6 +27,7 @@ app.use(cookieParser()) // Parse cookies from requests
 // Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
+app.use('/api/wallet', walletRoutes)
 
 // Health check endpoint with service status checks
 app.get('/health', async (_req, res) => {

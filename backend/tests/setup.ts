@@ -1,9 +1,22 @@
 import { beforeAll } from 'vitest'
 import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Load environment variables for testing
 beforeAll(() => {
-  dotenv.config()
+  // Load .env from backend directory
+  const envPath = path.resolve(__dirname, '../.env')
+  const result = dotenv.config({ path: envPath })
+  
+  if (result.error) {
+    console.warn('Warning: Could not load .env file:', result.error.message)
+  } else {
+    console.log('✅ Loaded .env file from:', envPath)
+  }
   
   // Ensure required environment variables are set for tests
   if (!process.env.JWT_SECRET) {
