@@ -16,7 +16,6 @@ const poolConfig: PoolConfig = {
 
 // Validate required environment variables
 if (!process.env.DB_PASSWORD) {
-  // eslint-disable-next-line no-console
   console.warn('Warning: DB_PASSWORD environment variable is not set. Using empty password.')
 }
 
@@ -24,7 +23,6 @@ const pool = new Pool(poolConfig)
 
 // Handle pool errors
 pool.on('error', (err) => {
-  // eslint-disable-next-line no-console
   console.error('Unexpected error on idle client', err)
 })
 

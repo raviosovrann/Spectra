@@ -15,6 +15,7 @@ beforeAll(() => {
   if (result.error) {
     console.warn('Warning: Could not load .env file:', result.error.message)
   } else {
+    // eslint-disable-next-line no-console
     console.log('✅ Loaded .env file from:', envPath)
   }
   

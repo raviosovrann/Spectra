@@ -21,7 +21,6 @@ async function runMigration(migrationFile: string): Promise<void> {
   const client = await pool.connect();
   
   try {
-    // eslint-disable-next-line no-console
     console.log(`Running migration: ${migrationFile}`);
     
     const migrationPath = path.join(__dirname, 'migrations', migrationFile);
@@ -31,13 +30,10 @@ async function runMigration(migrationFile: string): Promise<void> {
     await client.query(sql);
     await client.query('COMMIT');
     
-    // eslint-disable-next-line no-console
     console.log(`✓ Migration completed: ${migrationFile}`);
   } catch (error) {
     await client.query('ROLLBACK');
-    // eslint-disable-next-line no-console
     console.error(`✗ Migration failed: ${migrationFile}`);
-    // eslint-disable-next-line no-console
     console.error(error);
     throw error;
   } finally {
@@ -47,17 +43,14 @@ async function runMigration(migrationFile: string): Promise<void> {
 
 async function main(): Promise<void> {
   try {
-    // eslint-disable-next-line no-console
     console.log('Starting database migrations...\n');
     
     // Run migrations in order
     await runMigration('001_create_users_table.sql');
     
-    // eslint-disable-next-line no-console
     console.log('\n✓ All migrations completed successfully');
     process.exit(0);
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('\n✗ Migration process failed');
     process.exit(1);
   } finally {
