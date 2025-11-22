@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 
+/* eslint-disable no-console */
+
 // Load environment variables
 dotenv.config();
 
