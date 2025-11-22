@@ -13,12 +13,14 @@
 - ✅ Frontend authentication context with cookie-based sessions
 - ✅ Login and Signup pages with real authentication
 - ✅ Protected routes implementation
-- ✅ Settings page for Coinbase API credentials
+- ✅ Settings page for Coinbase API credentials, Wallet, Security, and Danger Zone
+- ✅ Profile page for personal information and preferences
 - ✅ Dashboard layout with horizontal tab navigation (Robinhood-style)
 - ✅ Frontend page placeholders with mock data (Investing, Trading, Portfolio, Insights, Alerts, History)
 - ✅ Coinbase REST API client with HMAC authentication
 - ✅ WebSocket manager for Coinbase connection with reconnection logic
 - ✅ Express server with CORS, health check, and error handling
+- ✅ UI/UX Refinements (Delete Modal, Navigation fixes, Page reorganization)
 
 **Next Steps:**
 - Create WebSocket server for frontend clients to receive real-time market data
@@ -66,7 +68,7 @@
   - Create backend/src/types/coinbase.ts for type definitions
   - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5, 12.2_
 
-- [ ] 2.2.1 Add ECDSA signature support to CoinbaseClient
+- [x] 2.2.1 Add ECDSA signature support to CoinbaseClient
   - Update backend/src/services/CoinbaseClient.ts to detect key format (HMAC vs ECDSA)
   - Implement ECDSA signature generation using crypto.createSign('SHA256')
   - Auto-detect signature type based on key format (BEGIN EC PRIVATE KEY = ECDSA)
@@ -160,7 +162,7 @@
   - Note: ProfileView.tsx also exists for viewing user profile information
   - _Requirements: 12.1, 15.1_
 
-- [ ] 2.4.11 Add Wallet section to Settings page
+- [x] 2.4.11 Add Wallet section to Settings page
   - Create frontend/src/components/settings/WalletSection.tsx component
   - Display Coinbase account balances fetched from GET /api/wallet/accounts
   - Show available balance, held funds, and account type for each currency
@@ -171,7 +173,7 @@
   - Integrate WalletSection into Settings.tsx below CoinbaseCredentialsForm
   - _Requirements: 15.2, 12.1_
 
-- [ ] 2.4.12 Create wallet API endpoints
+- [x] 2.4.12 Create wallet API endpoints
   - Create backend/src/routes/wallet.ts with endpoint: GET /api/wallet/accounts
   - Protect route with authentication middleware to get user_id
   - Retrieve user's encrypted Coinbase API credentials from database
@@ -210,6 +212,15 @@
   - Create frontend/src/stores/userStore.ts for theme and user preferences ✅
   - Note: All pages are fully functional with mock data and beautiful UI
   - _Requirements: 1.1, 3.1, 4.1, 5.1, 7.1, 8.1, 9.5_
+
+- [x] 2.7 UI/UX Refinements and Reorganization
+  - Implement DeleteConfirmationModal for API key deletion
+  - Fix navigation tab highlighting (hide active tab on Profile/Settings)
+  - Reorganize Settings page: Add Security (Password, 2FA) and Danger Zone (Delete Account)
+  - Simplify Profile page: Remove Security, Danger Zone, and Trading Mode
+  - Rename "Logout" to "Sign Out" in account menu
+  - Ensure consistent background styling across pages
+  - _Requirements: 9.5, 12.1_
 
 - [ ] 3. Backend WebSocket Server for Frontend Communication
 - [ ] 3.1 Create WebSocket server for frontend clients

@@ -56,13 +56,13 @@ export default function DashboardLayout() {
   const getActiveTab = () => {
     const path = location.pathname
     if (path === '/dashboard') return 'investing'
-    if (path === '/dashboard/profile') return null // No active tab on profile page
+    if (path === '/dashboard/profile' || path === '/dashboard/settings') return null // No active tab on profile/settings page
     const tab = tabs.find((t) => t.path === path)
     return tab?.id || 'investing'
   }
 
   const activeTab = getActiveTab()
-  const isProfilePage = location.pathname === '/dashboard/profile'
+  const hideNavigation = location.pathname === '/dashboard/profile' || location.pathname === '/dashboard/settings'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950">
@@ -165,7 +165,7 @@ export default function DashboardLayout() {
                         className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                       >
                         <LogOut className="h-4 w-4" />
-                        Logout
+                        Sign Out
                       </button>
                     </div>
                   </motion.div>
@@ -174,8 +174,8 @@ export default function DashboardLayout() {
             </div>
           </div>
 
-          {/* Desktop Tab Navigation - Hide on profile page */}
-          {!isProfilePage && (
+          {/* Desktop Tab Navigation - Hide on profile/settings page */}
+          {!hideNavigation && (
             <nav className="hidden md:flex gap-2 -mb-px">
               {tabs.map((tab) => {
                 const isActive = activeTab === tab.id
@@ -252,8 +252,8 @@ export default function DashboardLayout() {
         <Outlet />
       </main>
 
-      {/* Mobile Bottom Navigation - Hide on profile page */}
-      {!isProfilePage && (
+      {/* Mobile Bottom Navigation - Hide on profile/settings page */}
+      {!hideNavigation && (
         <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-dark-800 bg-dark-900/95 backdrop-blur-sm">
           <div className="grid grid-cols-6 gap-1 px-2 py-3">
             {tabs.map((tab) => {
@@ -278,7 +278,7 @@ export default function DashboardLayout() {
       )}
 
       {/* Bottom padding for mobile navigation */}
-      {!isProfilePage && <div className="md:hidden h-24" />}
+      {!hideNavigation && <div className="md:hidden h-24" />}
     </div>
   )
 }

@@ -114,6 +114,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null)
   }, [])
 
+  const refreshUser = useCallback(async () => {
+    await verifySession()
+  }, [verifySession])
+
   const value: AuthContextType = {
     user,
     token,
@@ -123,6 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     register,
     logout,
     clearError,
+    refreshUser,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

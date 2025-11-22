@@ -133,7 +133,7 @@ Spectra is an AI-powered cryptocurrency trading dashboard that combines real-tim
 4. THE Spectra System SHALL load and become interactive within 3 seconds on a standard 4G mobile connection
 5. THE Spectra System SHALL provide a dark mode and light mode theme with user-selectable preference
 
-### Requirement 10: Paper Trading Mode
+### Requirement 10: Paper Trading Mode (Deferred)
 
 **User Story:** As a novice trader, I want to practice trading with virtual money, so that I can learn trading strategies without financial risk.
 
@@ -144,6 +144,7 @@ Spectra is an AI-powered cryptocurrency trading dashboard that combines real-tim
 3. WHERE paper trading mode is enabled, THE Portfolio Manager SHALL track virtual holdings separately from real holdings
 4. THE Spectra System SHALL display a clear indicator when paper trading mode is active
 5. THE Spectra System SHALL allow users to toggle between paper trading mode and live trading mode with confirmation
+*Note: This feature is currently hidden in the UI for the initial release.*
 
 ### Requirement 11: Performance Optimization
 

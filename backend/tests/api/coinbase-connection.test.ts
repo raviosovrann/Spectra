@@ -22,19 +22,12 @@ describe('Coinbase API Connection', () => {
         privateKey = process.env.COINBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
         
         client = new CoinbaseAdvancedClient(apiKeyName, privateKey)
-        
-        console.log('\n📋 CDP API Key Info (from .env):')
-        console.log('  API Key Name:', apiKeyName)
-        console.log('  Type: ECDSA (CDP API Key)')
-        console.log('  Private Key Format:', privateKey.includes('BEGIN EC PRIVATE KEY') ? '✅ Valid' : '❌ Invalid')
-        console.log()
       } else {
         // Fallback to cdp_api_key.json file
         const cdpKeyPath = path.resolve(__dirname, '../../../cdp_api_key(1).json')
         
         if (!fs.existsSync(cdpKeyPath)) {
           console.warn('⚠️  No API key configured - skipping Coinbase connection tests')
-          console.warn('   Set COINBASE_API_KEY_NAME and COINBASE_PRIVATE_KEY in .env')
         } else {
           const cdpKey = JSON.parse(fs.readFileSync(cdpKeyPath, 'utf-8'))
           
@@ -43,12 +36,6 @@ describe('Coinbase API Connection', () => {
           privateKey = cdpKey.privateKey
           
           client = new CoinbaseAdvancedClient(apiKeyName, privateKey)
-          
-          console.log('\n📋 CDP API Key Info (from file):')
-          console.log('  API Key Name:', apiKeyName)
-          console.log('  Type: ECDSA (CDP API Key)')
-          console.log('  Private Key Format:', privateKey.includes('BEGIN EC PRIVATE KEY') ? '✅ Valid' : '❌ Invalid')
-          console.log()
         }
       }
     } catch (error) {
@@ -65,69 +52,24 @@ describe('Coinbase API Connection', () => {
 
   it('should authenticate and fetch accounts', async () => {
     if (!client) {
-      console.log('⏭️  Skipping test - no API key configured')
       return
     }
 
-    console.log('📊 Fetching accounts from Coinbase...')
-    
     const accounts = await client.getAccounts()
     
     expect(accounts).toBeDefined()
     expect(Array.isArray(accounts)).toBe(true)
-    
-    console.log(`✅ Successfully fetched ${accounts.length} account(s)`)
-    
-    if (accounts.length > 0) {
-      console.log('\n  Account Details:')
-      accounts.forEach((account, index) => {
-        const balance = parseFloat(account.available_balance.value)
-        const held = parseFloat(account.hold.value)
-        
-        if (balance > 0 || held > 0 || account.active) {
-          console.log(`    ${index + 1}. ${account.currency} (${account.type})`)
-          console.log(`       Available: ${balance.toFixed(8)} ${account.currency}`)
-          if (held > 0) {
-            console.log(`       Held: ${held.toFixed(8)} ${account.currency}`)
-          }
-          console.log(`       Status: ${account.active ? 'Active' : 'Inactive'}`)
-        }
-      })
-    } else {
-      console.log('  ℹ️  No accounts found (this is normal for new accounts)')
-    }
   }, 30000) // 30 second timeout
 
   it('should fetch available trading products', async () => {
     if (!client) {
-      console.log('⏭️  Skipping test - no API key configured')
       return
     }
 
-    console.log('\n📈 Fetching trading products from Coinbase...')
-    
     const products = await client.getProducts()
     
     expect(products).toBeDefined()
     expect(Array.isArray(products)).toBe(true)
     expect(products.length).toBeGreaterThan(0)
-    
-    console.log(`✅ Successfully fetched ${products.length} trading pair(s)`)
-    
-    // Show some popular products
-    const popularSymbols = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'USDC-USD']
-    const popularProducts = products.filter(p => popularSymbols.includes(p.product_id))
-    
-    if (popularProducts.length > 0) {
-      console.log('\n  Popular Trading Pairs:')
-      popularProducts.forEach(product => {
-        const price = parseFloat(product.price)
-        const change = parseFloat(product.price_percentage_change_24h)
-        
-        console.log(`    ${product.product_id}: $${price.toFixed(2)}`)
-        
-        
-      })
-    }
   }, 30000) // 30 second timeout
 })

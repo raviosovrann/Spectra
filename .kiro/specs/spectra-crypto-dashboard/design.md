@@ -174,8 +174,9 @@ App
 ├── Settings
 │   ├── CoinbaseCredentialsForm (API key and secret input with ECDSA support)
 │   ├── WalletSection (Coinbase account balances, deposit/withdraw info)
-│   ├── AccountInformation (display user profile data)
-│   └── SecurityNotice (encryption and security information)
+│   ├── SecuritySection (Change Password, 2FA)
+│   ├── DangerZone (Delete Account)
+│   └── DeleteConfirmationModal (Modal for critical actions)
 └── Shared Components
     ├── ErrorBoundary (catches React errors)
     ├── LoadingSpinner (loading states)

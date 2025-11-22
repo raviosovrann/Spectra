@@ -55,6 +55,10 @@ export default function WalletSection() {
   }
 
   useEffect(() => {
+    if (!user?.hasCoinbaseKeys) {
+      setAccounts([])
+      return
+    }
     fetchAccounts()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.hasCoinbaseKeys])
@@ -146,42 +150,47 @@ export default function WalletSection() {
 
       {/* Accounts List */}
       {!isLoading && !error && accounts.length > 0 && (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {accounts.map((account) => {
             const availableBalance = parseFloat(account.available_balance.value)
             const heldBalance = parseFloat(account.hold.value)
             const totalBalance = availableBalance + heldBalance
 
-            // Only show accounts with non-zero balance or active accounts
-            if (totalBalance === 0 && !account.active) return null
+            // Only show accounts with non-zero balance to avoid clutter
+            if (totalBalance <= 0) return null
 
             return (
               <motion.div
                 key={account.uuid}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-lg bg-dark-700 border border-dark-600 p-4 hover:border-dark-500 transition-all"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="rounded-xl bg-dark-700/50 border border-dark-600 p-5 hover:border-primary-500/50 hover:bg-dark-700 transition-all group"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-base font-semibold text-white">{account.currency}</h3>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-dark-600 text-dark-300">
-                        {account.type}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    {/* Crypto Icon Placeholder */}
+                    <div className="h-10 w-10 rounded-full bg-dark-600 flex items-center justify-center text-white font-bold text-sm border border-dark-500 group-hover:border-primary-500/30 transition-colors">
+                      {account.currency.substring(0, 3)}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white leading-none mb-1">{account.currency}</h3>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-dark-600 text-dark-300 border border-dark-500/50">
+                        {account.type === 'ACCOUNT_TYPE_CRYPTO' ? 'Crypto' : 'Fiat'}
                       </span>
                     </div>
-                    <p className="text-sm text-dark-400">{account.name}</p>
                   </div>
+                </div>
 
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-white">
-                      {formatBalance(account.available_balance.value)}
-                    </p>
-                    <p className="text-xs text-dark-400">Available</p>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold text-white tracking-tight">
+                    {formatBalance(account.available_balance.value)}
+                  </p>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-dark-400">Available Balance</span>
                     {heldBalance > 0 && (
-                      <p className="text-xs text-yellow-400 mt-1">
+                      <span className="text-yellow-400 font-medium flex items-center gap-1">
                         {formatBalance(account.hold.value)} held
-                      </p>
+                      </span>
                     )}
                   </div>
                 </div>

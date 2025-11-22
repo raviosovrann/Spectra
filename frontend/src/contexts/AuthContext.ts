@@ -10,6 +10,7 @@ export interface AuthContextType {
   register: (data: RegisterRequest) => Promise<void>
   logout: () => void
   clearError: () => void
+  refreshUser: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)

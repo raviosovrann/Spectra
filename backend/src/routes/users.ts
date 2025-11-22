@@ -181,4 +181,37 @@ router.patch('/coinbase-keys', authMiddleware, async (req: AuthRequest, res: Res
   }
 })
 
+// DELETE /api/users/coinbase-keys
+router.delete('/coinbase-keys', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      res.status(401).json({ error: 'User ID not found' })
+      return
+    }
+
+    // Clear Coinbase credentials
+    const result = await pool.query(
+      `UPDATE spectra_user_t 
+       SET user_coinbase_public = NULL, user_coinbase_public_iv = NULL, user_coinbase_public_tag = NULL,
+           user_coinbase_secret = NULL, user_coinbase_secret_iv = NULL, user_coinbase_secret_tag = NULL
+       WHERE user_id = $1
+       RETURNING user_id`,
+      [req.userId]
+    )
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'User not found' })
+      return
+    }
+
+    res.json({
+      message: 'Coinbase API credentials removed successfully',
+      hasCoinbaseKeys: false,
+    })
+  } catch (error) {
+    logger.error('Delete Coinbase keys error', { error: error instanceof Error ? error.message : String(error) })
+    res.status(500).json({ error: 'Failed to remove Coinbase credentials' })
+  }
+})
+
 export default router

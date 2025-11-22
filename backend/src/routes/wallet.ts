@@ -2,8 +2,8 @@ import { Router, Response } from 'express'
 import pool from '../database/config.js'
 import { authMiddleware, AuthRequest } from '../middleware/auth.js'
 import { decryptApiKey } from '../utils/encryption.js'
-import { CoinbaseClient } from '../services/CoinbaseClient.js'
 import logger from '../utils/logger.js'
+import { CoinbaseAdvancedClient } from '@/services/CoinbaseAdvancedClient.js'
 
 const router = Router()
 
@@ -56,7 +56,7 @@ router.get('/accounts', authMiddleware, async (req: AuthRequest, res: Response) 
     )
 
     // Initialize CoinbaseClient with user's credentials
-    const coinbaseClient = new CoinbaseClient(apiKey, apiSecret)
+    const coinbaseClient = new CoinbaseAdvancedClient(apiKey, apiSecret)
 
     // Fetch account balances from Coinbase
     const accounts = await coinbaseClient.getAccounts()

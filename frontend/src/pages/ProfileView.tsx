@@ -1,14 +1,10 @@
 import { motion } from 'framer-motion'
 import {
   User,
-  Key,
-  Shield,
   Bell,
   Palette,
   Save,
-  LogOut,
   CheckCircle,
-  AlertCircle,
   ArrowLeft,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -21,26 +17,21 @@ export default function ProfileView() {
     profile,
     notifications,
     theme,
-    paperTradingMode,
-    coinbaseConnected,
     setProfile,
     setNotifications,
     setTheme,
-    setPaperTradingMode,
   } = useUserStore()
 
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [localProfile, setLocalProfile] = useState(profile)
   const [localNotifications, setLocalNotifications] = useState(notifications)
   const [localTheme, setLocalTheme] = useState(theme)
-  const [localPaperTrading, setLocalPaperTrading] = useState(paperTradingMode)
 
   const handleSaveSettings = () => {
     // Update Zustand store
     setProfile(localProfile)
     setNotifications(localNotifications)
     setTheme(localTheme)
-    setPaperTradingMode(localPaperTrading)
 
     setSaveSuccess(true)
     setTimeout(() => setSaveSuccess(false), 3000)
@@ -144,63 +135,6 @@ export default function ProfileView() {
         </div>
       </div>
 
-      {/* Trading Mode */}
-      <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/10">
-            <Shield className="h-5 w-5 text-primary-400" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-white">Trading Mode</h2>
-            <p className="text-sm text-dark-400 mt-1">Choose between paper trading and live trading</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <label className="flex items-start gap-4 p-4 bg-dark-900 border border-dark-700 rounded-xl cursor-pointer hover:border-primary-500/50 transition-all">
-            <input
-              type="radio"
-              name="tradingMode"
-              checked={localPaperTrading}
-              onChange={() => setLocalPaperTrading(true)}
-              className="mt-1"
-            />
-            <div className="flex-1">
-              <div className="font-semibold text-white mb-1">Paper Trading (Simulated)</div>
-              <p className="text-sm text-dark-400">
-                Practice trading with virtual money ($10,000 virtual balance). Perfect for learning
-                without financial risk. Uses real market prices.
-              </p>
-            </div>
-          </label>
-
-          <label className="flex items-start gap-4 p-4 bg-dark-900 border border-dark-700 rounded-xl cursor-pointer hover:border-primary-500/50 transition-all">
-            <input
-              type="radio"
-              name="tradingMode"
-              checked={!localPaperTrading}
-              onChange={() => setLocalPaperTrading(false)}
-              disabled={!coinbaseConnected}
-              className="mt-1"
-            />
-            <div className="flex-1">
-              <div className="font-semibold text-white mb-1 flex items-center gap-2">
-                Live Trading
-                {!coinbaseConnected && (
-                  <span className="text-xs px-2 py-0.5 bg-warning-500/10 text-warning-400 rounded">
-                    Requires Coinbase
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-dark-400">
-                Execute real trades with your Coinbase account. All trades use real money and incur
-                actual fees.
-              </p>
-            </div>
-          </label>
-        </div>
-      </div>
-
       {/* Notifications */}
       <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-6">
@@ -283,66 +217,6 @@ export default function ProfileView() {
               <span className="text-white font-semibold">Light Mode</span>
             </div>
           </label>
-        </div>
-      </div>
-
-      {/* Security Section */}
-      <div className="bg-dark-800 border border-dark-700 rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/10">
-            <Key className="h-5 w-5 text-primary-400" />
-          </div>
-          <h2 className="text-xl font-bold text-white">Security</h2>
-        </div>
-
-        <div className="space-y-3">
-          <button className="w-full flex items-center justify-between p-4 bg-dark-900 border border-dark-700 rounded-xl hover:border-primary-500/50 transition-all text-left">
-            <div>
-              <div className="text-white font-medium">Change Password</div>
-              <p className="text-sm text-dark-400 mt-1">Update your account password</p>
-            </div>
-            <Key className="h-5 w-5 text-dark-400" />
-          </button>
-
-          <button className="w-full flex items-center justify-between p-4 bg-dark-900 border border-dark-700 rounded-xl hover:border-primary-500/50 transition-all text-left">
-            <div>
-              <div className="text-white font-medium">Two-Factor Authentication</div>
-              <p className="text-sm text-dark-400 mt-1">Add an extra layer of security</p>
-            </div>
-            <Shield className="h-5 w-5 text-dark-400" />
-          </button>
-        </div>
-      </div>
-
-      {/* Danger Zone */}
-      <div className="bg-dark-800 border border-danger-500/30 rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-danger-500/10">
-            <AlertCircle className="h-5 w-5 text-danger-400" />
-          </div>
-          <h2 className="text-xl font-bold text-white">Danger Zone</h2>
-        </div>
-
-        <div className="space-y-3">
-          <button className="w-full flex items-center justify-between p-4 bg-dark-900 border border-dark-700 rounded-xl hover:border-danger-500/50 transition-all text-left group">
-            <div>
-              <div className="text-white font-medium group-hover:text-danger-400 transition-colors">
-                Sign Out
-              </div>
-              <p className="text-sm text-dark-400 mt-1">Sign out from your account</p>
-            </div>
-            <LogOut className="h-5 w-5 text-dark-400 group-hover:text-danger-400 transition-colors" />
-          </button>
-
-          <button className="w-full flex items-center justify-between p-4 bg-danger-500/10 border border-danger-500/30 rounded-xl hover:bg-danger-500/20 transition-all text-left">
-            <div>
-              <div className="text-danger-400 font-medium">Delete Account</div>
-              <p className="text-sm text-danger-400/70 mt-1">
-                Permanently delete your account and all data
-              </p>
-            </div>
-            <AlertCircle className="h-5 w-5 text-danger-400" />
-          </button>
         </div>
       </div>
     </div>

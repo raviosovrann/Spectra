@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import jwt from 'jsonwebtoken'
 import type {
   Account,
   Product,
@@ -38,7 +39,19 @@ export class CoinbaseAdvancedClient {
 
   constructor(apiKeyName: string, privateKey: string, baseUrl?: string) {
     this.apiKeyName = apiKeyName
-    this.privateKey = privateKey
+    // Ensure private key has correct newline formatting for PEM
+    // 1. Replace literal \n with actual newlines
+    // 2. Remove surrounding quotes if present
+    // 3. Trim whitespace
+    let cleanKey = privateKey.replace(/\\n/g, '\n')
+    if (cleanKey.startsWith('"') && cleanKey.endsWith('"')) {
+      cleanKey = cleanKey.slice(1, -1)
+    }
+    if (cleanKey.startsWith("'") && cleanKey.endsWith("'")) {
+      cleanKey = cleanKey.slice(1, -1)
+    }
+    this.privateKey = cleanKey.trim()
+    
     this.baseUrl = baseUrl || 'https://api.coinbase.com'
     this.retryConfig = {
       maxAttempts: 3,
@@ -48,46 +61,42 @@ export class CoinbaseAdvancedClient {
 
   /**
    * Generate JWT token for CDP API Key authentication
-   * Based on: https://docs.cdp.coinbase.com/coinbase-app/docs/api-key-authentication#typescript
+   * 
+   * The JWT is signed using the ES256 algorithm and includes the following claims:
+   * - iss: 'coinbase-cloud' (Issuer)
+   * - nbf: Not Before time (now)
+   * - exp: Expiration time (now + 2 minutes)
+   * - sub: Subject (API Key Name)
+   * - uri: The request URI (method + host + path)
+   * 
+   * The header must include the 'kid' (Key ID) which is the API Key Name.
+   * 
+   * @param requestMethod - HTTP method (GET, POST, etc.)
+   * @param requestPath - API endpoint path (e.g., /api/v3/brokerage/accounts)
+   * @returns Signed JWT string
    */
   private generateJWT(requestMethod: string, requestPath: string): string {
-    const algorithm = 'ES256'
-    // URI format: "METHOD api.coinbase.com/path" (without https://)
+    // Construct the URI for the claim: method + host + path (no protocol)
     const uri = `${requestMethod} ${this.baseUrl.replace('https://', '')}${requestPath}`
-    
-    // Extract just the UUID from the API key name (last part after /)
-    const kid = this.apiKeyName.split('/').pop() || this.apiKeyName
-    
-    // JWT Header
-    const header = {
-      alg: algorithm,
-      kid: kid,
-      nonce: crypto.randomBytes(16).toString('hex')
-    }
 
-    // JWT Payload
-    const now = Math.floor(Date.now() / 1000)
-    const payload = {
-      sub: kid,
-      iss: 'coinbase-cloud',
-      nbf: now,
-      exp: now + 120, // Token expires in 2 minutes
-      uri: uri
-    }
-
-    // Encode header and payload
-    const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url')
-    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url')
-    const unsignedToken = `${encodedHeader}.${encodedPayload}`
-
-    // Sign with private key using ECDSA
-    const sign = crypto.createSign('SHA256')
-    sign.update(unsignedToken)
-    sign.end()
-    const signature = sign.sign(this.privateKey, 'base64url')
-
-    // Return complete JWT
-    return `${unsignedToken}.${signature}`
+    return jwt.sign(
+      {
+        iss: 'coinbase-cloud',
+        nbf: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 120, // 2 minute expiration (Coinbase requirement for request-specific JWTs)
+        sub: this.apiKeyName,
+        uri,
+      },
+      this.privateKey,
+      {
+        algorithm: 'ES256',
+        header: {
+          kid: this.apiKeyName,
+          nonce: crypto.randomBytes(16).toString('hex'),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+      }
+    )
   }
 
   /**
@@ -174,7 +183,15 @@ export class CoinbaseAdvancedClient {
   }
 
   /**
-   * Get all accounts for the authenticated user
+   * Get all accounts for the authenticated user.
+   * 
+   * This endpoint retrieves a list of all accounts for the user, including
+   * balances, currency, and account status.
+   * 
+   * API Endpoint: GET /api/v3/brokerage/accounts
+   * 
+   * @returns Promise resolving to an array of Account objects
+   * @throws Error if the API request fails
    */
   async getAccounts(): Promise<Account[]> {
     interface AccountsResponse {
@@ -193,7 +210,15 @@ export class CoinbaseAdvancedClient {
   }
 
   /**
-   * Get all available trading products
+   * Get all available trading products (trading pairs).
+   * 
+   * This endpoint retrieves a list of all available trading pairs (e.g., BTC-USD, ETH-USD)
+   * along with their status, base/quote currencies, and other metadata.
+   * 
+   * API Endpoint: GET /api/v3/brokerage/products
+   * 
+   * @returns Promise resolving to an array of Product objects
+   * @throws Error if the API request fails
    */
   async getProducts(): Promise<Product[]> {
     interface ProductsResponse {
@@ -210,7 +235,15 @@ export class CoinbaseAdvancedClient {
   }
 
   /**
-   * Place a new order
+   * Place a new order.
+   * 
+   * This endpoint allows placing market or limit orders for a specific product.
+   * 
+   * API Endpoint: POST /api/v3/brokerage/orders
+   * 
+   * @param order - The order request object containing product_id, side, and order configuration
+   * @returns Promise resolving to the order response (including order_id)
+   * @throws Error if the order placement fails (e.g., insufficient funds)
    */
   async placeOrder(order: OrderRequest): Promise<OrderResponse> {
     interface PlaceOrderResponse {
@@ -241,7 +274,13 @@ export class CoinbaseAdvancedClient {
   }
 
   /**
-   * Get details of a specific order
+   * Get details of a specific order by its ID.
+   * 
+   * API Endpoint: GET /api/v3/brokerage/orders/historical/{orderId}
+   * 
+   * @param orderId - The unique identifier of the order
+   * @returns Promise resolving to the Order object
+   * @throws Error if the order is not found or request fails
    */
   async getOrder(orderId: string): Promise<Order> {
     interface GetOrderResponse {
@@ -257,7 +296,15 @@ export class CoinbaseAdvancedClient {
   }
 
   /**
-   * Cancel an existing order
+   * Cancel an existing order.
+   * 
+   * This endpoint cancels a specific order if it is still open.
+   * 
+   * API Endpoint: POST /api/v3/brokerage/orders/batch_cancel
+   * 
+   * @param orderId - The unique identifier of the order to cancel
+   * @returns Promise resolving to void
+   * @throws Error if the cancellation fails
    */
   async cancelOrder(orderId: string): Promise<void> {
     interface CancelOrderResponse {
