@@ -83,7 +83,11 @@ describe('Encryption - API Key Encryption/Decryption', () => {
   it('should fail decryption with tampered encrypted data', () => {
     const apiKey = 'test-api-key-12345'
     const encrypted = encryptApiKey(apiKey)
-    const tamperedEncrypted = encrypted.encrypted.substring(0, encrypted.encrypted.length - 2) + 'ff'
+    
+    // Ensure we actually change the ciphertext
+    const lastByte = encrypted.encrypted.slice(-2)
+    const newLastByte = lastByte === 'ff' ? '00' : 'ff'
+    const tamperedEncrypted = encrypted.encrypted.substring(0, encrypted.encrypted.length - 2) + newLastByte
     
     expect(() => {
       decryptApiKey(tamperedEncrypted, encrypted.iv, encrypted.authTag)
