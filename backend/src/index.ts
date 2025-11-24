@@ -7,12 +7,25 @@ import pool from './database/config.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
 import walletRoutes from './routes/wallet.js'
+import { FrontendWebSocketServer } from './services/FrontendWebSocketServer.js'
+import { WebSocketManager } from './services/WebSocketManager.js'
+import { MarketDataRelay } from './services/MarketDataRelay.js'
 
 // Load environment variables
 dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
+const WS_PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 3002
+
+// Initialize WebSocket server for frontend clients
+const frontendWsServer = new FrontendWebSocketServer(WS_PORT)
+
+// Initialize Coinbase WebSocket manager
+const coinbaseWsManager = new WebSocketManager()
+
+// Initialize market data relay
+const marketDataRelay = new MarketDataRelay(coinbaseWsManager, frontendWsServer)
 
 // Middleware
 app.use(
@@ -80,7 +93,20 @@ app.use(
   }
 )
 
-// Start server
+// Start Express server
 app.listen(PORT, () => {
   logger.info(`Backend server running on port ${PORT}`)
 })
+
+// Start WebSocket server
+frontendWsServer.start()
+
+// Start market data relay
+marketDataRelay.start().catch((error) => {
+  logger.error('Failed to start market data relay', {
+    error: error instanceof Error ? error.message : String(error),
+  })
+})
+
+// Export services for use in other modules
+export { frontendWsServer, coinbaseWsManager, marketDataRelay }

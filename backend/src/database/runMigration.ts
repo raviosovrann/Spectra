@@ -2,8 +2,14 @@ import { Pool } from 'pg';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 /* eslint-disable no-console */
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Load environment variables
 dotenv.config();
@@ -49,6 +55,10 @@ async function main(): Promise<void> {
     
     // Run migrations in order
     await runMigration('001_create_users_table.sql');
+    await runMigration('002_create_user_portfolio_table.sql');
+    await runMigration('003_create_user_holdings_table.sql');
+    await runMigration('004_create_user_trades_table.sql');
+    await runMigration('005_create_user_alerts_table.sql');
     
     console.log('\n✓ All migrations completed successfully');
     process.exit(0);

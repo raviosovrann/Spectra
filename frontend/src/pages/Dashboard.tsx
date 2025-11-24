@@ -59,22 +59,22 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="rounded-2xl bg-dark-900 p-6 border border-dark-800"
+              className="rounded-2xl bg-dark-900 p-6 border border-dark-800 hover:border-primary-500/50 transition-colors"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/10">
                   <stat.icon className="h-5 w-5 text-primary-400" />
                 </div>
                 <span
-                  className={`text-sm font-semibold ${
+                  className={`text-sm font-bold font-mono ${
                     stat.positive ? 'text-success-400' : 'text-danger-400'
                   }`}
                 >
                   {stat.change}
                 </span>
               </div>
-              <h3 className="text-sm text-dark-400 mb-1">{stat.title}</h3>
-              <p className="text-2xl font-bold text-white">{stat.value}</p>
+              <h3 className="text-sm text-dark-400 mb-1 font-medium">{stat.title}</h3>
+              <p className="text-2xl font-bold text-white font-mono tracking-tight">{stat.value}</p>
             </motion.div>
           ))}
         </div>

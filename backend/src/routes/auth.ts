@@ -111,6 +111,7 @@ router.post('/login', async (req, res: Response) => {
     res.json({
       message: 'Login successful',
       user,
+      token, // Also return token for WebSocket authentication
     })
   } catch (error) {
     logger.error('Login error', { error: error instanceof Error ? error.message : String(error) })

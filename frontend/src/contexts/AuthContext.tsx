@@ -46,16 +46,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null)
 
     try {
-      const response = await axios.post<{ user: User; message: string }>(
+      const response = await axios.post<{ user: User; message: string; token: string }>(
         `${API_URL}/api/auth/login`,
         credentials,
         { withCredentials: true } // Important: Send/receive cookies
       )
 
-      const { user: userData } = response.data
+      const { user: userData, token: authToken } = response.data
 
       setUser(userData)
-      setToken('cookie-based') // Placeholder since token is in HTTP-only cookie
+      setToken(authToken)
+      
+      // Store token in localStorage for WebSocket authentication
+      localStorage.setItem('spectra_auth_token', authToken)
     } catch (err: unknown) {
       const errorMessage = axios.isAxiosError(err) ? err.response?.data?.error || err.message : 'Login failed'
       setError(errorMessage)
@@ -107,6 +110,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setToken(null)
       setUser(null)
+      // Clear token from localStorage
+      localStorage.removeItem('spectra_auth_token')
     }
   }, [])
 

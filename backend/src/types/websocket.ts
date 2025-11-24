@@ -28,11 +28,11 @@ export interface CoinbaseTickerMessage {
   type: 'ticker'
   product_id: string
   price: string
-  open_24_h: string
-  volume_24_h: string
-  low_24_h: string
-  high_24_h: string
-  volume_30_d: string
+  open_24h: string
+  volume_24h: string
+  low_24h: string
+  high_24h: string
+  volume_30d: string
   best_bid: string
   best_ask: string
   side: string

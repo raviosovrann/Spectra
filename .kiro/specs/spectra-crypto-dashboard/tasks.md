@@ -24,12 +24,12 @@
 - ✅ Wallet API endpoint to fetch Coinbase account balances
 
 **In Progress / Next Priority:**
-1. **Backend WebSocket Server** - Create WebSocket server for frontend clients to receive real-time market data
-2. **Market Data Relay** - Implement service to relay Coinbase WebSocket data to frontend clients
-3. **Database Migrations** - Create migrations for portfolios, holdings, trades, and alerts tables
-4. **AI Analysis Engine** - Build technical indicators (RSI, SMA, volatility, volume) and insights generation
-5. **Frontend State Management** - Create Zustand stores (marketStore, portfolioStore, alertsStore)
-6. **Real-Time Integration** - Connect frontend pages to real backend APIs and WebSocket data
+1. **Backend WebSocket Server** - Create WebSocket server for frontend clients to receive real-time market data (Task 3.1)
+2. **Market Data Relay** - Implement service to relay Coinbase WebSocket data to frontend clients (Task 3.2)
+3. **Database Migrations** - Create migrations for portfolios, holdings, trades, and alerts tables (Task 3.3)
+4. **AI Analysis Engine** - Build technical indicators (RSI, SMA, volatility, volume) and insights generation (Tasks 4.1-4.3)
+5. **Frontend State Management** - Create Zustand stores (marketStore, portfolioStore, alertsStore) (Task 5.1)
+6. **Real-Time Integration** - Connect frontend pages to real backend APIs and WebSocket data (Tasks 5.2, 6.1-6.2, 7.1-7.4, 8.1-8.3, 9.1-9.3, 10.1-10.4, 11.1-11.4)
 
 **Deferred:**
 - Paper Trading Mode (hidden in UI for MVP)
@@ -198,16 +198,16 @@
   - Test authentication middleware with valid and invalid tokens
   - _Requirements: 12.1, 12.2_
 
-- [ ] 2.4.14 Add unit tests for CoinbaseAdvancedClient
-  - Create backend/tests/unit/CoinbaseAdvancedClient.test.ts for isolated unit tests
-  - Mock axios HTTP client to avoid real API calls
-  - Test HMAC signature generation with known inputs and expected outputs
-  - Test ECDSA signature generation with mock EC private key
-  - Test signature type auto-detection (HMAC vs ECDSA based on key format)
-  - Test request header construction (CB-ACCESS-KEY, CB-ACCESS-SIGN, CB-ACCESS-TIMESTAMP)
-  - Test error handling for invalid credentials, network failures, and API errors
-  - Test retry logic with exponential backoff for failed requests
-  - Verify request payload formatting for different API methods (getAccounts, placeOrder, etc.)
+- [x] 2.4.14 Add unit tests for CoinbaseAdvancedClient
+  - Create backend/tests/unit/CoinbaseAdvancedClient.test.ts for isolated unit tests ✅
+  - Mock axios HTTP client to avoid real API calls ✅
+  - Test HMAC signature generation with known inputs and expected outputs ✅
+  - Test ECDSA signature generation with mock EC private key ✅
+  - Test signature type auto-detection (HMAC vs ECDSA based on key format) ✅
+  - Test request header construction (CB-ACCESS-KEY, CB-ACCESS-SIGN, CB-ACCESS-TIMESTAMP) ✅
+  - Test error handling for invalid credentials, network failures, and API errors ✅
+  - Test retry logic with exponential backoff for failed requests ✅
+  - Verify request payload formatting for different API methods (getAccounts, placeOrder, etc.) ✅
   - _Requirements: 15.1, 15.2, 12.2_
 
 - [x] 2.5 Build Dashboard Layout and Navigation (Robinhood-style)
@@ -242,26 +242,30 @@
   - _Requirements: 9.5, 12.1_
 
 - [ ] 3. Backend WebSocket Server and Real-Time Market Data
-- [ ] 3.1 Create WebSocket server for frontend clients
-  - Create backend/src/services/FrontendWebSocketServer.ts
-  - Set up ws library WebSocket server on separate port (3002)
-  - Implement client connection handling with connection tracking
-  - Create message broadcasting function to send updates to all connected clients
-  - Add heartbeat mechanism (30s interval) to detect dead connections
-  - Update backend/src/index.ts to initialize WebSocket server
+- [x] 3.1 Create WebSocket server for frontend clients
+  - Create backend/src/services/FrontendWebSocketServer.ts with WebSocket server class
+  - Install ws library: `npm install ws @types/ws` in backend directory
+  - Set up WebSocket server on separate port (3002) from REST API
+  - Implement client connection handling with Map to track connected clients
+  - Create broadcast() method to send market updates to all connected clients
+  - Add heartbeat/ping mechanism (30s interval) to detect and close dead connections
+  - Implement connection authentication using JWT tokens from handshake
+  - Update backend/src/index.ts to initialize and start WebSocket server alongside Express
   - _Requirements: 2.2, 11.1_
 
-- [ ] 3.2 Implement market data relay service
-  - Create backend/src/services/MarketDataRelay.ts
-  - Initialize WebSocketManager and connect to Coinbase WebSocket feed
-  - Subscribe to ticker channel for top 30 cryptocurrency pairs (BTC-USD, ETH-USD, SOL-USD, etc.)
-  - Batch incoming ticker messages using requestAnimationFrame or setInterval
-  - Throttle broadcasts to frontend clients (60fps max, ~16ms intervals)
-  - Normalize and enrich data before broadcasting (add timestamps, format numbers)
+- [x] 3.2 Implement market data relay service
+  - Create backend/src/services/MarketDataRelay.ts with MarketDataRelay class
+  - Initialize WebSocketManager (already exists) and connect to Coinbase WebSocket feed
+  - Subscribe to ticker channel for top 30 cryptocurrency pairs (BTC-USD, ETH-USD, SOL-USD, ADA-USD, DOGE-USD, etc.)
+  - Implement message batching using setInterval to collect updates every 16ms (~60fps)
+  - Normalize incoming Coinbase ticker messages to internal format with consistent field names
+  - Enrich data with calculated fields (24h change percentage, formatted timestamps)
+  - Integrate with FrontendWebSocketServer to broadcast batched updates to all connected frontend clients
+  - Add error handling for Coinbase connection failures with automatic reconnection
   - Wire up MarketDataRelay in backend/src/index.ts to start on server initialization
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 11.1, 11.2_
 
-- [ ] 3.3 Create database migrations for portfolios, holdings, trades, and alerts
+- [x] 3.3 Create database migrations for portfolios, holdings, trades, and alerts
   - Create backend/src/database/migrations/002_create_portfolios_table.sql with columns: portfolio_id, user_id, total_value, cash_balance, change_24h, change_24h_percent, is_paper_trading, updated_at
   - Create backend/src/database/migrations/003_create_holdings_table.sql with columns: holding_id, portfolio_id, symbol, quantity, average_buy_price, current_price, current_value, unrealized_pnl, unrealized_pnl_percent, updated_at
   - Create backend/src/database/migrations/004_create_trades_table.sql with columns: trade_id, user_id, order_id, symbol, side, amount, price, fees, total_value, is_paper_trade, executed_at, created_at
@@ -272,14 +276,14 @@
 
 - [ ] 4. AI Analysis Engine
 - [ ] 4.1 Implement technical indicator calculations
-  - Create backend/src/services/TechnicalIndicators.ts
-  - Implement calculateRSI(prices: number[], period: number = 14): number function
-  - Implement calculateSMA(prices: number[], period: number): number function
-  - Implement detectSMACrossover(prices: number[], shortPeriod: number = 7, longPeriod: number = 30): 'bullish' | 'bearish' | 'neutral' function
-  - Implement calculateVolatility(prices: number[]): number using standard deviation formula
-  - Implement analyzeVolume(currentVolume: number, averageVolume: number): VolumeAnalysis function
-  - Create backend/src/types/indicators.ts for type definitions (VolumeAnalysis, TechnicalIndicator, etc.)
-  - Add unit tests for each calculation function
+  - Create backend/src/services/TechnicalIndicators.ts with calculation functions
+  - Implement calculateRSI(prices: number[], period: number = 14): number using standard RSI formula (RS = avg gain / avg loss)
+  - Implement calculateSMA(prices: number[], period: number): number for simple moving average
+  - Implement detectSMACrossover(prices: number[], shortPeriod: number = 7, longPeriod: number = 30): 'bullish' | 'bearish' | 'neutral' to detect golden/death crosses
+  - Implement calculateVolatility(prices: number[]): number using standard deviation of returns
+  - Implement analyzeVolume(currentVolume: number, averageVolume: number): VolumeAnalysis to detect volume spikes (>150% threshold)
+  - Create backend/src/types/indicators.ts for type definitions (VolumeAnalysis, TechnicalIndicator, SMACrossover, etc.)
+  - Handle edge cases: insufficient data (return neutral/50), NaN values, empty arrays
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
 - [ ] 4.2 Implement whale detection (optional)
@@ -292,13 +296,14 @@
   - _Requirements: 6.5_
 
 - [ ] 4.3 Build insights generation system
-  - Create backend/src/services/AIEngine.ts
+  - Create backend/src/services/AIEngine.ts with AIEngine class
   - Implement generateInsights(symbol: string, marketData: MarketData): MarketInsight[] function
-  - Calculate all technical indicators (RSI, SMA, volatility, volume)
-  - Implement insight prioritization algorithm based on confidence scoring
-  - Generate natural language summaries for each insight (e.g., "BTC is oversold with RSI at 28")
-  - Implement 60-second caching for insights per symbol using Map<string, CachedInsight>
-  - Create backend/src/routes/insights.ts with endpoints: GET /api/insights (all symbols), GET /api/insights/:symbol
+  - Calculate all technical indicators using TechnicalIndicators service (RSI, SMA crossover, volatility, volume)
+  - Implement confidence scoring algorithm: RSI extremes (>70 or <30) = high confidence, SMA crossover = medium, volume spike = medium
+  - Generate natural language summaries for each insight (e.g., "BTC is oversold with RSI at 28 - potential buying opportunity")
+  - Implement insight prioritization: sort by confidence score, limit to top 3-5 insights per symbol
+  - Implement 60-second caching for insights per symbol using Map<string, { insights: MarketInsight[], timestamp: number }>
+  - Create backend/src/routes/insights.ts with endpoints: GET /api/insights (top insights across all symbols), GET /api/insights/:symbol (symbol-specific)
   - Protect routes with authentication middleware
   - Wire up insights routes in backend/src/index.ts
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 11.2_
@@ -312,89 +317,122 @@
   - Wire up market routes in backend/src/index.ts
   - _Requirements: 1.1, 3.4_
 
-- [ ] 5. Frontend State Management and Real-Time Data Integration
-- [ ] 5.1 Create Zustand stores for application state
-  - Create frontend/src/stores/marketStore.ts for cryptocurrency data with updateBatch() method, subscribe/unsubscribe methods
-  - Create frontend/src/stores/portfolioStore.ts for holdings, valuations, and cash balance tracking
-  - Create frontend/src/stores/alertsStore.ts for alert management (create, delete, snooze, trigger)
-  - Create frontend/src/types/market.ts with Cryptocurrency, PriceHistory, Candle interfaces
-  - Create frontend/src/types/portfolio.ts with Portfolio, Holding interfaces
-  - Create frontend/src/types/alert.ts with Alert, AlertCondition interfaces
+- [x] 5. Frontend State Management and Real-Time Data Integration
+- [x] 5.1 Create Zustand stores for application state
+  - Install zustand if not already: `npm install zustand` in frontend directory
+  - Create frontend/src/stores/marketStore.ts with Zustand store for cryptocurrency data
+  - Implement updateBatch(updates: Cryptocurrency[]) method to efficiently update multiple cryptos at once
+  - Implement updateSingle(symbol: string, data: Partial<Cryptocurrency>) for individual updates
+  - Add selectors: getCrypto(symbol), getAllCryptos(), getTopMovers()
+  - Create frontend/src/stores/portfolioStore.ts for holdings, total value, cash balance, and P&L tracking
+  - Implement methods: updateHolding(), addHolding(), removeHolding(), updateCashBalance(), calculateTotalValue()
+  - Create frontend/src/stores/alertsStore.ts for alert management
+  - Implement methods: addAlert(), deleteAlert(), snoozeAlert(), triggerAlert(), getActiveAlerts()
+  - Create frontend/src/types/market.ts with Cryptocurrency, PriceHistory, Candle, TickerUpdate interfaces
+  - Create frontend/src/types/portfolio.ts with Portfolio, Holding, PortfolioSummary interfaces
+  - Create frontend/src/types/alert.ts with Alert, AlertCondition, AlertType interfaces
   - _Requirements: 3.1, 3.2, 14.2, 14.4_
 
-- [ ] 5.2 Implement WebSocket hook for frontend
-  - Create frontend/src/hooks/useWebSocket.ts custom hook with connection management
-  - Connect to backend WebSocket server (ws://localhost:3002 or env variable)
-  - Implement automatic reconnection on connection loss with exponential backoff
-  - Add message handler registration system for different message types
-  - Update marketStore when ticker messages arrive from backend
-  - Display connection status in UI (connected/disconnected/reconnecting)
-  - Update ConnectionStatus indicator in DashboardLayout Header to reflect real connection status
+- [x] 5.2 Implement WebSocket hook for frontend
+  - Create frontend/src/hooks/useWebSocket.ts custom React hook with connection lifecycle management
+  - Connect to backend WebSocket server using URL from environment variable (VITE_WS_URL or ws://localhost:3002)
+  - Implement automatic reconnection on connection loss with exponential backoff (1s, 2s, 4s, 8s, max 30s)
+  - Add message handler registration: onMessage(type: string, handler: (data: any) => void)
+  - Parse incoming WebSocket messages and route to appropriate handlers based on message type
+  - Update marketStore.updateBatch() when ticker batch messages arrive from backend
+  - Track connection status state: 'connecting' | 'connected' | 'disconnected' | 'reconnecting'
+  - Return connection status and methods from hook: { status, connect, disconnect, send }
+  - Update ConnectionStatus indicator in DashboardLayout Header to show real-time connection status with color coding
+  - Add useEffect cleanup to close WebSocket connection when component unmounts
   - _Requirements: 2.2, 2.3, 13.3_
 
 - [ ] 6. Real-Time Heatmap Integration
-- [ ] 6.1 Enhance InvestingView with real-time data
-  - Update frontend/src/pages/InvestingView.tsx to use marketStore instead of mockData
-  - Subscribe to WebSocket updates using useWebSocket hook
-  - Implement pulse animation on price updates (green for up, red for down) using Framer Motion
-  - Add React.memo optimization for individual crypto cells to prevent unnecessary re-renders
-  - Create frontend/src/utils/formatters.ts for number formatting (K/M/B suffixes, currency formatting)
-  - Ensure smooth color transitions using CSS transitions
-  - Update heatmap colors dynamically based on real-time price changes
+- [x] 6.1 Enhance InvestingView with real-time data
+  - Update frontend/src/pages/InvestingView.tsx to use marketStore.getAllCryptos() instead of mockCryptos
+  - Initialize WebSocket connection using useWebSocket hook in component
+  - Subscribe to market data updates and trigger re-renders when marketStore updates
+  - Implement pulse animation on price updates using Framer Motion's animate prop (green pulse for price increase, red for decrease)
+  - Wrap CoinCell component with React.memo() and custom comparison function to only re-render when price/change24h changes
+  - Create frontend/src/utils/formatters.ts with functions: formatCurrency(), formatNumber() (K/M/B suffixes), formatPercent()
+  - Add CSS transition classes for smooth color changes on heatmap cells (transition-colors duration-300)
+  - Update cell background colors dynamically based on real-time 24h change percentage
+  - Add loading skeleton while initial data loads
+  - Handle empty state if no market data available
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 9.1, 9.2, 9.3, 11.1_
 
-- [ ] 6.2 Create CoinDetailModal
-  - Create frontend/src/components/modals/CoinDetailModal.tsx
-  - Display detailed cryptocurrency information (name, symbol, price, 24h change, volume, market cap)
-  - Show price chart (line chart using Recharts) with historical data
-  - Display technical indicators (RSI, volatility, volume) fetched from backend
-  - Add "Trade" button to navigate to TradingView with selected cryptocurrency
-  - Implement modal close on ESC key and backdrop click
-  - Add loading state while fetching detailed data
+- [x] 6.2 Create CoinDetailModal
+  - Create frontend/src/components/modals/CoinDetailModal.tsx with modal component
+  - Accept props: isOpen, onClose, symbol
+  - Display detailed cryptocurrency information: name, symbol, current price, 24h change (with color coding), 24h volume, market cap
+  - Fetch and display price chart using PriceChart component (to be created in task 13.1) with 24h historical data
+  - Fetch and display technical indicators from GET /api/insights/:symbol endpoint
+  - Show indicator cards: RSI (with overbought/oversold zones), Volatility (percentage), Volume (vs average)
+  - Add "Trade" button that navigates to /dashboard/trading with selected cryptocurrency pre-selected
+  - Implement modal close on ESC key press using useEffect with keyboard event listener
+  - Implement modal close on backdrop click
+  - Add loading spinner while fetching data from backend
+  - Handle error state if data fetch fails
+  - Use Framer Motion for smooth modal enter/exit animations
   - _Requirements: 1.1, 9.3_
 
 - [ ] 7. Trading Interface
 - [ ] 7.1 Update TradingView with real-time data and order form
-  - Update frontend/src/pages/TradingView.tsx to use marketStore for real-time prices
-  - Replace mockCryptos with data from marketStore
-  - Update selected cryptocurrency price in real-time
-  - Implement real-time balance display from portfolioStore
-  - Add input validation: positive amounts, minimum $10, sufficient balance
-  - Calculate and display estimated fees (0.5% for MVP)
-  - Show total cost/proceeds calculation dynamically
+  - Update frontend/src/pages/TradingView.tsx to use marketStore.getAllCryptos() instead of mockCryptos
+  - Subscribe to real-time price updates for selected cryptocurrency from marketStore
+  - Update selected cryptocurrency price display in real-time (every update from WebSocket)
+  - Fetch and display user's cash balance from portfolioStore.getCashBalance()
+  - Add client-side input validation: amount > 0, amount >= $10 minimum, buy orders check balance >= total cost
+  - Calculate estimated fees dynamically: feeAmount = subtotal * 0.005 (0.5%)
+  - Show total cost calculation: total = (amount * price) + fees for buy orders
+  - Show total proceeds calculation: total = (amount * price) - fees for sell orders
+  - Update calculations in real-time as user types in amount field
+  - Disable submit button if validation fails (insufficient balance, below minimum, invalid amount)
   - _Requirements: 4.1, 4.2, 4.3_
 
 - [ ] 7.2 Implement order submission flow
-  - Create backend/src/routes/orders.ts with placeOrder endpoint (POST /api/orders)
-  - Create backend/src/services/OrderService.ts for order validation and execution logic
-  - Protect route with authentication middleware to get user_id
-  - Retrieve user's Coinbase API credentials from database and decrypt using decryptApiKey
-  - Validate order on backend (amount > 0, balance sufficient, minimum $10 size)
-  - Call Coinbase API with user's credentials to place order using CoinbaseAdvancedClient
-  - Store trade record in trades table with user_id, order_id, symbol, side, amount, price, fees, total_value
-  - Return order ID and status to frontend
-  - Update portfolioStore with pending order in frontend
-  - Wire up orders routes in backend/src/index.ts
+  - Create backend/src/routes/orders.ts with POST /api/orders endpoint
+  - Create backend/src/services/OrderService.ts with validateOrder() and executeOrder() methods
+  - Protect route with authentication middleware to extract user_id from JWT
+  - Retrieve user's encrypted Coinbase API credentials from database using user_id
+  - Decrypt credentials using decryptApiKey() from encryption utility
+  - Validate order on backend: amount > 0, amount >= $10 minimum, symbol format valid (XXX-USD)
+  - For buy orders: verify user has sufficient balance (query Coinbase accounts API)
+  - Initialize CoinbaseAdvancedClient with user's decrypted credentials
+  - Call client.placeOrder() to submit order to Coinbase API
+  - Store trade record in trades table: user_id, order_id (from Coinbase), symbol, side, amount, price, fees, total_value, executed_at
+  - Return order response to frontend: { orderId, status, filledAmount, executedValue, fees }
+  - Update portfolioStore in frontend with pending order status
+  - Wire up orders routes in backend/src/index.ts with app.use('/api/orders', ordersRoutes)
+  - Add error handling for: invalid credentials, insufficient balance, API errors, network failures
   - _Requirements: 4.4, 4.5, 12.1, 12.2, 12.3, 15.1, 15.3_
 
 - [ ] 7.3 Build OrderConfirmation modal
-  - Create frontend/src/components/modals/OrderConfirmation.tsx
-  - Display order summary: symbol, type (market/limit), amount, price, fees, total
-  - Show "Confirm" and "Cancel" buttons
-  - Disable confirm button during submission
-  - Show loading spinner while order is being placed
-  - Display success/error message after submission using toast notifications
-  - Close modal automatically on success after 2 seconds
+  - Create frontend/src/components/modals/OrderConfirmation.tsx modal component
+  - Accept props: isOpen, onClose, onConfirm, orderDetails (symbol, side, type, amount, price, fees, total)
+  - Display order summary in clear layout: "You are about to [BUY/SELL] [amount] [symbol] at [price]"
+  - Show breakdown: Subtotal, Fees (0.5%), Total Cost/Proceeds
+  - Add "Confirm Order" button (primary, green for buy, red for sell) and "Cancel" button (secondary)
+  - Disable confirm button and show loading spinner during order submission (isSubmitting state)
+  - Call onConfirm callback when user clicks confirm button
+  - Display success message using toast notification on successful order placement
+  - Display error message using toast notification if order fails
+  - Close modal automatically 2 seconds after successful order
+  - Implement modal close on ESC key and backdrop click (only when not submitting)
   - _Requirements: 4.4, 4.5_
 
 - [ ] 7.4 Implement order status tracking
-  - Add getOrderStatus endpoint (GET /api/orders/:orderId) in backend/src/routes/orders.ts
-  - Query Coinbase API for order status using CoinbaseAdvancedClient
-  - Create frontend/src/hooks/useOrderStatus.ts hook
-  - Poll order status every 2 seconds until filled or cancelled (max 30 attempts)
-  - Update UI with real-time status (pending → open → filled → complete)
-  - Update portfolioStore when order is filled (add holding, deduct cash)
-  - Update trades table with final execution details
+  - Add GET /api/orders/:orderId endpoint in backend/src/routes/orders.ts
+  - Protect route with authentication middleware
+  - Retrieve user's Coinbase credentials and initialize CoinbaseAdvancedClient
+  - Query Coinbase API for order status using client.getOrder(orderId)
+  - Return order status: { orderId, status, filledAmount, averagePrice, fees, updatedAt }
+  - Create frontend/src/hooks/useOrderStatus.ts custom hook
+  - Implement polling logic: fetch order status every 2 seconds using setInterval
+  - Stop polling when status is 'filled', 'cancelled', or 'rejected', or after 30 attempts (60 seconds)
+  - Update UI with real-time status badges: pending (yellow), open (blue), filled (green), cancelled (gray)
+  - When order is filled: update portfolioStore with new holding (or update existing), deduct cash balance
+  - Update trades table in database with final execution details (filled amount, average price, actual fees)
+  - Clean up interval on component unmount
   - _Requirements: 4.5, 15.4_
 
 - [ ]* 7.5 Add order placement tests
@@ -405,14 +443,17 @@
 
 - [ ] 8. Portfolio Management
 - [ ] 8.1 Update PortfolioView with real-time data
-  - Update frontend/src/pages/PortfolioView.tsx to use portfolioStore instead of mockHoldings
-  - Display total portfolio value with real-time updates from portfolioStore
-  - Show 24h P&L in USD and percentage with real-time calculations
-  - Display available cash balance from portfolioStore
-  - Update holdings table to use real data from portfolioStore
-  - Update current prices in real-time from marketStore
-  - Recalculate P&L dynamically as prices change
-  - Add visual indicators (green for profit, red for loss)
+  - Update frontend/src/pages/PortfolioView.tsx to use portfolioStore.getHoldings() instead of mockHoldings
+  - Display total portfolio value from portfolioStore.getTotalValue() with real-time updates
+  - Calculate and show 24h P&L: compare current value to value 24h ago (store previous value in portfolioStore)
+  - Display 24h P&L percentage: (currentValue - value24hAgo) / value24hAgo * 100
+  - Display available cash balance from portfolioStore.getCashBalance()
+  - Update holdings table to use real data: symbol, quantity, average buy price, current price, current value, unrealized P&L
+  - Subscribe to marketStore updates to get real-time current prices for each holding
+  - Recalculate P&L dynamically: unrealizedPnL = (currentPrice - avgBuyPrice) * quantity
+  - Add visual indicators: green text/icons for positive P&L, red for negative, gray for zero
+  - Add loading state while fetching initial portfolio data
+  - Handle empty state if user has no holdings yet
   - _Requirements: 3.1, 3.2, 3.5_
 
 - [ ] 8.2 Update portfolio charts with real data
@@ -425,15 +466,17 @@
 
 - [ ] 8.3 Implement portfolio data persistence and API
   - Create backend/src/routes/portfolio.ts with endpoints: GET /api/portfolio, GET /api/portfolio/history
-  - Create backend/src/services/PortfolioService.ts for portfolio calculations
-  - Protect routes with authentication middleware to get user_id
-  - Query holdings from portfolios and holdings tables (per user)
-  - Calculate portfolio value based on current prices from market data cache
-  - Calculate 24h P&L by comparing current value to value 24h ago
-  - Update portfolio when orders are filled (add/update holdings, deduct cash)
-  - Support both real and paper trading portfolios (is_paper_trading flag)
-  - Generate historical portfolio snapshots for charting (daily snapshots)
-  - Wire up portfolio routes in backend/src/index.ts
+  - Create backend/src/services/PortfolioService.ts with methods: getPortfolio(), updateHolding(), calculateValue()
+  - Protect routes with authentication middleware to extract user_id
+  - Query holdings from portfolios and holdings tables filtered by user_id
+  - Fetch current prices from market data cache (maintained by MarketDataRelay)
+  - Calculate current portfolio value: sum of (quantity * currentPrice) for all holdings + cash balance
+  - Calculate 24h P&L: compare current value to value stored 24h ago in portfolio snapshots
+  - Implement updatePortfolio() method called when orders are filled: add new holding or update existing quantity/avgBuyPrice
+  - Support both real and paper trading portfolios using is_paper_trading flag in portfolios table
+  - Generate daily portfolio snapshots for historical charting: store total_value, timestamp in portfolio_snapshots table
+  - Implement GET /api/portfolio/history endpoint: return array of { timestamp, value } for last 7d or 30d
+  - Wire up portfolio routes in backend/src/index.ts with app.use('/api/portfolio', portfolioRoutes)
   - _Requirements: 3.1, 3.2, 3.4, 12.1, 14.5_
 
 - [ ]* 8.4 Add portfolio calculation tests
@@ -444,14 +487,16 @@
 
 - [ ] 9. AI Insights Dashboard
 - [ ] 9.1 Update InsightsView with real AI insights
-  - Update frontend/src/pages/InsightsView.tsx to fetch insights from backend API
-  - Replace mockInsights with real data from GET /api/insights endpoint
-  - Display 3-5 top insights sorted by confidence score
-  - Implement auto-refresh every 30 seconds using useEffect
-  - Show loading state while fetching insights
-  - Handle empty state (no significant insights available)
-  - Display insight cards with summary, signal type, confidence score
-  - Add click handler to show detailed analysis in modal
+  - Update frontend/src/pages/InsightsView.tsx to fetch insights from GET /api/insights endpoint
+  - Replace mockInsights with real data from API response
+  - Display top 3-5 insights sorted by confidence score (backend handles sorting)
+  - Implement auto-refresh every 30 seconds using useEffect with setInterval
+  - Show loading skeleton while fetching initial insights
+  - Handle empty state with helpful message: "No significant market signals detected at this time"
+  - Display insight cards with: symbol, signal type (bullish/bearish/neutral), summary text, confidence score (0-100)
+  - Color-code cards: green background for bullish, red for bearish, yellow for neutral
+  - Add click handler to open InsightDetailModal (to be created in task 9.3) with full analysis
+  - Clean up interval on component unmount
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
 - [ ] 9.2 Build MetricsDisplay component
@@ -475,36 +520,46 @@
 
 - [ ] 10. Smart Alerts System
 - [ ] 10.1 Update AlertsView with real alert functionality
-  - Update frontend/src/pages/AlertsView.tsx to use alertsStore instead of mockAlerts
-  - Create form for alert creation with fields: symbol dropdown, alert type, condition, threshold
-  - Support alert types: price above/below, RSI overbought/oversold, volume spike, SMA crossover
-  - Validate inputs (positive thresholds, valid ranges for RSI 0-100)
-  - Submit to backend API (POST /api/alerts) on form submission
-  - Display active alerts in a table with columns: symbol, type, condition, status, actions
-  - Add "Delete" button for each alert
-  - Add "Snooze" button for triggered alerts (snooze for 1 hour)
-  - Filter by status (active/triggered/all) using tabs
+  - Update frontend/src/pages/AlertsView.tsx to use alertsStore.getAlerts() instead of mockAlerts
+  - Create alert creation form with fields: symbol (dropdown from marketStore), alert type (dropdown), threshold (number input)
+  - Support alert types: "Price Above", "Price Below", "RSI Overbought" (>70), "RSI Oversold" (<30), "Volume Spike" (>150%), "SMA Crossover"
+  - Add client-side validation: threshold > 0 for price alerts, RSI threshold 0-100, required fields
+  - Submit to POST /api/alerts endpoint on form submission with payload: { symbol, alertType, condition }
+  - Display active alerts in table with columns: Symbol, Type, Condition, Status (active/triggered/snoozed), Created, Actions
+  - Add "Delete" button (trash icon) for each alert that calls DELETE /api/alerts/:id
+  - Add "Snooze" button (clock icon) for triggered alerts that calls PATCH /api/alerts/:id/snooze (snooze for 1 hour)
+  - Implement status filter tabs: All, Active, Triggered, Snoozed
+  - Update alertsStore when alerts are created, deleted, or snoozed
+  - Show loading state while fetching alerts
+  - Handle empty state: "No alerts configured. Create your first alert above."
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
 - [ ] 10.2 Implement alert monitoring service
-  - Create backend/src/services/AlertService.ts for alert monitoring and triggering
-  - Subscribe to market data updates from MarketDataRelay
-  - Check alert conditions on every market update (price, volume)
-  - Calculate technical indicators (RSI, SMA) for alert checking
-  - Trigger alerts when conditions are met (update status to 'triggered')
-  - Send alert notifications to frontend via WebSocket broadcast
-  - Update alert status in alerts table (triggered_at timestamp)
-  - Initialize AlertService in backend/src/index.ts
+  - Create backend/src/services/AlertService.ts with AlertService class
+  - Implement checkAlerts(marketData: MarketData) method called on every market update
+  - Subscribe to market data updates from MarketDataRelay using event emitter or callback
+  - Load all active alerts from database on service initialization
+  - Check price alerts: compare current price to threshold (priceAbove/priceBelow)
+  - Check volume alerts: compare current volume to average volume (>150% spike)
+  - Calculate RSI using TechnicalIndicators service and check against thresholds (>70 overbought, <30 oversold)
+  - Calculate SMA crossover using TechnicalIndicators service and detect golden/death crosses
+  - When alert condition is met: update alert status to 'triggered' in database, set triggered_at timestamp
+  - Send alert notification to frontend via FrontendWebSocketServer.broadcast() with message type 'alert'
+  - Implement alert cooldown: don't re-trigger same alert within 1 hour
+  - Initialize AlertService in backend/src/index.ts and start monitoring
   - _Requirements: 8.2, 8.3, 8.4, 8.5_
 
 - [ ] 10.3 Build AlertNotification component
-  - Create frontend/src/components/alerts/AlertNotification.tsx (toast component)
-  - Listen for alert notifications from WebSocket
-  - Display alert message with symbol, condition, and current value
-  - Add "Dismiss" and "View" buttons
-  - Implement browser notification API for background alerts
-  - Request notification permission on first alert creation
-  - Play sound on alert trigger (optional)
+  - Create frontend/src/components/alerts/AlertNotification.tsx toast notification component
+  - Listen for alert notifications from WebSocket in useWebSocket hook (message type 'alert')
+  - Display toast with alert details: symbol, alert type, condition met, current value
+  - Add "Dismiss" button to close toast and "View" button to navigate to AlertsView
+  - Implement browser Notification API for background alerts when tab is not focused
+  - Request notification permission using Notification.requestPermission() on first alert creation
+  - Show browser notification with title: "Alert Triggered: [SYMBOL]" and body: alert message
+  - Auto-dismiss toast after 10 seconds unless user interacts
+  - Stack multiple alerts vertically in top-right corner
+  - Add optional sound effect on alert trigger using Audio API (can be disabled in settings)
   - _Requirements: 8.5_
 
 - [ ] 10.4 Implement alert persistence API
@@ -524,14 +579,17 @@
 
 - [ ] 11. Trade History
 - [ ] 11.1 Update HistoryView with real trade data
-  - Update frontend/src/pages/HistoryView.tsx to fetch trades from backend API
-  - Replace mockTrades with real data from GET /api/trades endpoint
-  - Create table with columns: Date, Symbol, Type (Buy/Sell), Amount, Price, Fees, Total
-  - Implement pagination (20 trades per page) with page controls
-  - Format dates and numbers appropriately using formatters utility
-  - Add sorting by column headers (date, amount, total)
-  - Show loading state while fetching trades
-  - Handle empty state (no trades yet)
+  - Update frontend/src/pages/HistoryView.tsx to fetch trades from GET /api/trades endpoint
+  - Replace mockTrades with real data from API response
+  - Create table with columns: Date (formatted), Symbol, Type (Buy/Sell with color badges), Amount, Price, Fees, Total
+  - Implement pagination: 20 trades per page with Previous/Next buttons and page numbers
+  - Track current page in component state and pass as query param: ?page=1&limit=20
+  - Format dates using formatters.formatDate() (e.g., "Nov 22, 2025 3:45 PM")
+  - Format numbers using formatters.formatCurrency() for prices and totals
+  - Add sorting by column headers: date (default DESC), amount, total - pass sort param to API
+  - Show loading skeleton while fetching trades
+  - Handle empty state: "No trades yet. Place your first order to see your trade history."
+  - Display total count and current page info: "Showing 1-20 of 150 trades"
   - _Requirements: 5.1, 5.2_
 
 - [ ] 11.2 Implement trade filtering and search
@@ -553,16 +611,18 @@
   - _Requirements: 5.5_
 
 - [ ] 11.4 Create trade history API
-  - Create backend/src/routes/trades.ts with endpoint: GET /api/trades
-  - Create backend/src/services/TradeService.ts for trade history queries
-  - Protect route with authentication middleware to get user_id
+  - Create backend/src/routes/trades.ts with GET /api/trades endpoint
+  - Create backend/src/services/TradeService.ts with getTrades() method
+  - Protect route with authentication middleware to extract user_id
   - Query trades table filtered by user_id
-  - Support query params for filtering (symbol, dateFrom, dateTo, type)
-  - Support pagination with limit and offset query params
-  - Support sorting by date (DESC default), amount, total_value
-  - Return total count for pagination UI
-  - Implement 90-day data retention cleanup job (run daily)
-  - Wire up trades routes in backend/src/index.ts
+  - Support query params: symbol (filter by crypto), dateFrom/dateTo (date range), type (buy/sell/all)
+  - Support pagination: limit (default 20), offset (calculated from page number)
+  - Support sorting: sortBy (date/amount/total_value), sortOrder (asc/desc, default desc for date)
+  - Build SQL query dynamically based on provided filters
+  - Return response: { trades: Trade[], totalCount: number, page: number, limit: number }
+  - Implement 90-day data retention cleanup job using node-cron: run daily at midnight, delete trades older than 90 days
+  - Wire up trades routes in backend/src/index.ts with app.use('/api/trades', tradesRoutes)
+  - Add error handling for invalid query params
   - _Requirements: 5.1, 5.2, 5.3, 12.1, 14.5_
 
 - [ ] 12. Paper Trading Mode (Deferred - Hidden in UI)
@@ -594,21 +654,25 @@
 
 - [ ] 13. Charts and Visualizations
 - [ ] 13.1 Build PriceChart component with real data
-  - Create frontend/src/components/charts/PriceChart.tsx
-  - Create line chart using Recharts for price history
-  - Support time ranges: 1h, 24h, 7d, 30d with selector buttons
-  - Display tooltips with price and timestamp on hover
-  - Fetch historical price data from backend API (GET /api/market/history/:symbol)
-  - Show loading state while fetching data
-  - Handle empty state (no historical data available)
-  - Integrate into CoinDetailModal and TradingView
+  - Create frontend/src/components/charts/PriceChart.tsx with LineChart from Recharts
+  - Accept props: symbol, timeRange (1h/24h/7d/30d), height (optional)
+  - Create time range selector buttons above chart to switch between ranges
+  - Fetch historical price data from GET /api/market/history/:symbol?interval=[timeRange] endpoint
+  - Display line chart with X-axis (time), Y-axis (price), and smooth curve
+  - Implement custom tooltip showing: timestamp (formatted), price (formatted with $)
+  - Color line based on overall trend: green if price increased, red if decreased
+  - Show loading skeleton while fetching data
+  - Handle empty state: "No historical data available for this time range"
+  - Add gradient fill under line for visual appeal
+  - Integrate into CoinDetailModal (24h default) and TradingView (user selectable)
+  - Memoize chart data to prevent unnecessary re-renders
   - _Requirements: 1.1_
 
-- [x] 13.2 CandlestickChart component (already implemented)
-  - frontend/src/components/charts/CandlestickChart.tsx already exists
-  - Shows OHLC (Open, High, Low, Close) data with mock data
-  - Color-coded candles (green for up, red for down)
-  - Integrated into TradingView
+- [x] 13.2 Build CandlestickChart component
+  - frontend/src/components/charts/CandlestickChart.tsx already exists ✅
+  - Shows OHLC (Open, High, Low, Close) data with mock data ✅
+  - Color-coded candles (green for up, red for down) ✅
+  - Integrated into TradingView ✅
   - Note: Update with real data when historical API is implemented
   - _Requirements: 1.1_
 
@@ -877,3 +941,57 @@
   - Add screenshots and code snippets
   - Discuss AI insights generation and technical indicators
   - _Requirements: 7.1_
+
+---
+
+## Implementation Roadmap
+
+The tasks are organized in a logical sequence to build the application incrementally:
+
+**Phase 1: Real-Time Infrastructure (Tasks 3.1-3.3)**
+- Set up WebSocket server for frontend clients
+- Implement market data relay from Coinbase to frontend
+- Create database migrations for portfolios, holdings, trades, and alerts
+
+**Phase 2: AI Analysis Engine (Tasks 4.1-4.4)**
+- Build technical indicator calculations (RSI, SMA, volatility, volume)
+- Implement insights generation system
+- Create market data history API
+
+**Phase 3: Frontend State & Real-Time Integration (Tasks 5.1-6.2)**
+- Create Zustand stores for market, portfolio, and alerts
+- Implement WebSocket hook for real-time updates
+- Enhance InvestingView with live data and animations
+- Build CoinDetailModal for detailed crypto information
+
+**Phase 4: Trading Functionality (Tasks 7.1-7.5)**
+- Update TradingView with real-time data
+- Implement order submission flow with Coinbase API
+- Build order confirmation modal
+- Add order status tracking
+
+**Phase 5: Portfolio & Insights (Tasks 8.1-9.3)**
+- Update PortfolioView with real-time valuations
+- Implement portfolio API and persistence
+- Update InsightsView with AI-generated insights
+- Build metrics display and insight detail modal
+
+**Phase 6: Alerts & History (Tasks 10.1-11.4)**
+- Implement smart alerts system with monitoring
+- Build alert notifications
+- Update HistoryView with real trade data
+- Add filtering, search, and CSV export
+
+**Phase 7: Polish & Optimization (Tasks 13.1-18.3)**
+- Build charts and visualizations
+- Implement responsive design
+- Add error handling and user feedback
+- Implement security hardening
+
+**Phase 8: Optional Enhancements (Tasks 19.1-23.4)**
+- Documentation and developer experience
+- Kiro integration (hooks, MCP, steering)
+- Testing and quality assurance
+- Deployment and launch preparation
+
+**Note:** Tasks marked with `*` are optional and can be skipped for MVP. Tasks marked with `[x]` are already completed.

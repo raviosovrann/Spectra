@@ -51,6 +51,10 @@ CREATE TRIGGER update_spectra_user_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- Grant execute permission on the trigger function to all users
+-- This allows other migrations to use the function for their triggers
+GRANT EXECUTE ON FUNCTION update_updated_at_column() TO PUBLIC;
+
 -- Comments for documentation
 COMMENT ON TABLE spectra_user_t IS 'User accounts with authentication and Coinbase API credentials';
 COMMENT ON COLUMN spectra_user_t.user_id IS 'Unique user identifier (UUID)';

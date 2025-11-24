@@ -4,6 +4,7 @@ import { Sun, Moon, Menu, X, Settings, LogOut } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useUserStore } from '../../stores/userStore'
 import { useAuth } from '../../hooks/useAuth'
+import { useWebSocket } from '../../hooks/useWebSocket'
 
 // Page icons
 import investingIcon from '../../assets/investing-page.svg'
@@ -27,6 +28,7 @@ export default function DashboardLayout() {
   const location = useLocation()
   const { theme, setTheme } = useUserStore()
   const { logout, user } = useAuth()
+  const { status: wsStatus } = useWebSocket()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const accountMenuRef = useRef<HTMLDivElement>(null)
@@ -64,6 +66,54 @@ export default function DashboardLayout() {
   const activeTab = getActiveTab()
   const hideNavigation = location.pathname === '/dashboard/profile' || location.pathname === '/dashboard/settings'
 
+  // Get connection status display properties
+  const getConnectionStatus = () => {
+    switch (wsStatus) {
+      case 'connected':
+        return {
+          bgClass: 'bg-success-500/10',
+          dotClass: 'bg-success-400',
+          textClass: 'text-success-400',
+          label: 'Connected',
+          animate: true,
+        }
+      case 'connecting':
+        return {
+          bgClass: 'bg-warning-500/10',
+          dotClass: 'bg-warning-400',
+          textClass: 'text-warning-400',
+          label: 'Connecting...',
+          animate: true,
+        }
+      case 'reconnecting':
+        return {
+          bgClass: 'bg-warning-500/10',
+          dotClass: 'bg-warning-400',
+          textClass: 'text-warning-400',
+          label: 'Reconnecting...',
+          animate: true,
+        }
+      case 'disconnected':
+        return {
+          bgClass: 'bg-error-500/10',
+          dotClass: 'bg-error-400',
+          textClass: 'text-error-400',
+          label: 'Disconnected',
+          animate: false,
+        }
+      default:
+        return {
+          bgClass: 'bg-error-500/10',
+          dotClass: 'bg-error-400',
+          textClass: 'text-error-400',
+          label: 'Disconnected',
+          animate: false,
+        }
+    }
+  }
+
+  const connectionStatus = getConnectionStatus()
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950">
       {/* Header */}
@@ -91,9 +141,9 @@ export default function DashboardLayout() {
             {/* Right Side Actions */}
             <div className="flex items-center gap-4">
               {/* Connection Status */}
-              <div className="hidden md:flex items-center gap-2 rounded-lg bg-success-500/10 px-3 py-1.5 text-sm">
-                <div className="h-2 w-2 rounded-full bg-success-400 animate-pulse" />
-                <span className="text-success-400 font-medium">Connected</span>
+              <div className={`hidden md:flex items-center gap-2 rounded-lg ${connectionStatus.bgClass} px-3 py-1.5 text-sm`}>
+                <div className={`h-2 w-2 rounded-full ${connectionStatus.dotClass} ${connectionStatus.animate ? 'animate-pulse' : ''}`} />
+                <span className={`${connectionStatus.textClass} font-medium`}>{connectionStatus.label}</span>
               </div>
 
               {/* Theme Toggle */}
@@ -239,9 +289,9 @@ export default function DashboardLayout() {
               })}
             </nav>
             {/* Mobile Connection Status */}
-            <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-success-500/10 px-3 py-2 text-sm">
-              <div className="h-2 w-2 rounded-full bg-success-400 animate-pulse" />
-              <span className="text-success-400 font-medium">Connected</span>
+            <div className={`mt-4 flex items-center justify-center gap-2 rounded-lg ${connectionStatus.bgClass} px-3 py-2 text-sm`}>
+              <div className={`h-2 w-2 rounded-full ${connectionStatus.dotClass} ${connectionStatus.animate ? 'animate-pulse' : ''}`} />
+              <span className={`${connectionStatus.textClass} font-medium`}>{connectionStatus.label}</span>
             </div>
           </div>
         </motion.div>

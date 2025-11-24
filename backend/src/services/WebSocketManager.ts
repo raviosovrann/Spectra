@@ -170,9 +170,14 @@ export class WebSocketManager {
         const normalized = this.normalizeLevel2Message(message as CoinbaseLevel2Message)
         this.notifyHandlers(normalized)
       } else if (message.type === 'subscriptions') {
-        logger.info('Subscription confirmed', { message })
+        logger.info('Subscription confirmed', { 
+          channels: message.channels 
+        })
       } else if (message.type === 'error') {
-        logger.error('Coinbase WebSocket error', { message: message.message })
+        logger.error('Coinbase WebSocket error', { 
+          message: message.message,
+          reason: message.reason 
+        })
       }
     } catch (error) {
       logger.error('Error parsing WebSocket message', { error })
@@ -187,10 +192,10 @@ export class WebSocketManager {
       type: 'ticker',
       productId: message.product_id,
       price: parseFloat(message.price),
-      open24h: parseFloat(message.open_24_h),
-      volume24h: parseFloat(message.volume_24_h),
-      low24h: parseFloat(message.low_24_h),
-      high24h: parseFloat(message.high_24_h),
+      open24h: parseFloat(message.open_24h),
+      volume24h: parseFloat(message.volume_24h),
+      low24h: parseFloat(message.low_24h),
+      high24h: parseFloat(message.high_24h),
       bestBid: parseFloat(message.best_bid),
       bestAsk: parseFloat(message.best_ask),
       timestamp: new Date(message.time).getTime(),
