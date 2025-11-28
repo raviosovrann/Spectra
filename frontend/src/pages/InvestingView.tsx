@@ -204,19 +204,13 @@ export default function InvestingView() {
       return {
         totalMarketCap: 0,
         totalVolume: 0,
-        btcDominance: 0,
         marketCapChange: 0,
         volumeChange: 0,
-        btcDominanceChange: 0,
       }
     }
 
     const totalMarketCap = cryptos.reduce((sum, crypto) => sum + crypto.marketCap, 0)
     const totalVolume = cryptos.reduce((sum, crypto) => sum + crypto.volume24h, 0)
-    const btcCrypto = cryptos.find((c) => c.symbol === 'BTC')
-    const btcDominance = btcCrypto && totalMarketCap > 0 
-      ? (btcCrypto.marketCap / totalMarketCap) * 100 
-      : 0
 
     // Calculate average change for market cap change approximation
     const avgChange = cryptos.reduce((sum, crypto) => sum + crypto.change24h, 0) / cryptos.length
