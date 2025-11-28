@@ -22,6 +22,10 @@ Spectra is an AI-powered cryptocurrency trading dashboard that combines real-tim
 - **Market Order**: An order to buy/sell immediately at current market price
 - **Limit Order**: An order to buy/sell at a specific target price
 - **Whale Activity**: Unusually large trading orders that may indicate institutional trading
+- **TimesFM**: Time Series Foundation Model by Google Research, a pre-trained model for zero-shot time series forecasting
+- **ML Service**: Python Flask service running TimesFM locally for price predictions
+- **Price Forecast**: ML-generated prediction of future price direction and magnitude with confidence scores
+- **Hybrid Insight**: Market insight combining ML predictions with technical indicator analysis
 
 ## Requirements
 
@@ -108,6 +112,23 @@ Spectra is an AI-powered cryptocurrency trading dashboard that combines real-tim
 3. THE Insight Card SHALL display a confidence score indicating the strength of the signal
 4. THE Insight Card SHALL use color coding with green for bullish signals, red for bearish signals, and yellow for neutral signals
 5. WHEN a user clicks an Insight Card, THE Spectra System SHALL display detailed analysis including relevant charts and indicator values
+
+### Requirement 16: Machine Learning Price Forecasting
+
+**User Story:** As a trader, I want ML-powered price predictions based on historical patterns, so that I can make data-driven trading decisions with quantified confidence levels.
+
+#### Acceptance Criteria
+
+1. THE ML Service SHALL use Google TimesFM 2.5 (google/timesfm-2.5-200m-pytorch) running locally via a Python Flask service
+2. THE ML Model SHALL generate price direction predictions (up/down/neutral) with confidence scores between 0 and 100 percent
+3. THE ML Model SHALL provide forecasts for 1-day, 7-day, and 30-day time horizons
+4. THE ML Service SHALL require a minimum of 30 historical price data points for predictions
+5. THE AI Engine SHALL combine ML predictions with technical analysis (RSI, SMA, volatility, volume) to generate hybrid insights
+6. THE Node.js backend SHALL call the Python ML service via HTTP for predictions
+7. THE ML Service SHALL cache predictions for 60 seconds to reduce inference overhead
+8. WHEN ML service is unavailable, THE AI Engine SHALL fall back to technical analysis only
+9. THE Insights UI SHALL allow users to add and remove tracked cryptocurrencies
+10. THE Insights UI SHALL display ML prediction details (direction, confidence, predicted change) in a detail modal
 
 ### Requirement 8: Smart Alert System
 

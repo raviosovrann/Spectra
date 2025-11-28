@@ -7,6 +7,9 @@ import pool from './database/config.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
 import walletRoutes from './routes/wallet.js'
+import insightsRoutes from './routes/insights.js'
+import marketRoutes from './routes/market.js'
+import { checkMLServiceHealth } from './services/AIEngine.js'
 import { FrontendWebSocketServer } from './services/FrontendWebSocketServer.js'
 import { WebSocketManager } from './services/WebSocketManager.js'
 import { MarketDataRelay } from './services/MarketDataRelay.js'
@@ -41,6 +44,8 @@ app.use(cookieParser()) // Parse cookies from requests
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/wallet', walletRoutes)
+app.use('/api/insights', insightsRoutes)
+app.use('/api/market', marketRoutes)
 
 // Health check endpoint with service status checks
 app.get('/health', async (_req, res) => {
@@ -106,6 +111,15 @@ marketDataRelay.start().catch((error) => {
   logger.error('Failed to start market data relay', {
     error: error instanceof Error ? error.message : String(error),
   })
+})
+
+// Check ML service availability
+checkMLServiceHealth().then((available) => {
+  if (available) {
+    logger.info('ML service is available')
+  } else {
+    logger.warn('ML service not available, using technical analysis only')
+  }
 })
 
 // Export services for use in other modules

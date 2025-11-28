@@ -22,14 +22,22 @@
 - ✅ Express server with CORS, cookie parser, health check, and error handling
 - ✅ UI/UX Refinements (Delete Modal, Navigation fixes, Page reorganization)
 - ✅ Wallet API endpoint to fetch Coinbase account balances
+- ✅ Technical indicators (RSI, SMA, volatility, volume analysis)
+- ✅ Python ML service with TimesFM 2.5 for price forecasting (backend/ml-service/)
+- ✅ Node.js ML client to call Python service
+- ✅ AIEngine combining ML predictions with technical analysis
+- ✅ Dynamic InsightsView with add/remove coins and detail modal
 
 **In Progress / Next Priority:**
-1. **Backend WebSocket Server** - Create WebSocket server for frontend clients to receive real-time market data (Task 3.1)
-2. **Market Data Relay** - Implement service to relay Coinbase WebSocket data to frontend clients (Task 3.2)
-3. **Database Migrations** - Create migrations for portfolios, holdings, trades, and alerts tables (Task 3.3)
-4. **AI Analysis Engine** - Build technical indicators (RSI, SMA, volatility, volume) and insights generation (Tasks 4.1-4.3)
-5. **Frontend State Management** - Create Zustand stores (marketStore, portfolioStore, alertsStore) (Task 5.1)
-6. **Real-Time Integration** - Connect frontend pages to real backend APIs and WebSocket data (Tasks 5.2, 6.1-6.2, 7.1-7.4, 8.1-8.3, 9.1-9.3, 10.1-10.4, 11.1-11.4)
+1. **Backend WebSocket Server** - Create WebSocket server for frontend clients to receive real-time market data (Task 3.1) ✅
+2. **Market Data Relay** - Implement service to relay Coinbase WebSocket data to frontend clients (Task 3.2) ✅
+3. **Database Migrations** - Create migrations for portfolios, holdings, trades, and alerts tables (Task 3.3) ✅
+4. **Technical Indicators** - Build technical indicators (RSI, SMA, volatility, volume) (Task 4.1) ✅
+5. **Rule-Based Insights** - Build insights generation system with technical analysis (Task 4.3) ✅
+6. **Market Data History API** - Create historical candle data API (Task 4.4) ✅
+7. **ML Price Prediction** - Python TimesFM service for price forecasting (Tasks 4.5.1-4.5.5) ✅
+8. **Frontend State Management** - Create Zustand stores (marketStore, portfolioStore, alertsStore) (Task 5.1) ✅
+9. **Real-Time Integration** - Connect frontend pages to real backend APIs and WebSocket data (Tasks 5.2, 6.1-6.2, 7.1-7.4, 8.1-8.3, 9.1-9.3, 10.1-10.4, 11.1-11.4)
 
 **Deferred:**
 - Paper Trading Mode (hidden in UI for MVP)
@@ -241,7 +249,7 @@
   - Ensure consistent background styling across pages
   - _Requirements: 9.5, 12.1_
 
-- [ ] 3. Backend WebSocket Server and Real-Time Market Data
+- [x] 3. Backend WebSocket Server and Real-Time Market Data
 - [x] 3.1 Create WebSocket server for frontend clients
   - Create backend/src/services/FrontendWebSocketServer.ts with WebSocket server class
   - Install ws library: `npm install ws @types/ws` in backend directory
@@ -274,8 +282,8 @@
   - Run migrations to create tables in database
   - _Requirements: 12.1, 14.5_
 
-- [ ] 4. AI Analysis Engine
-- [ ] 4.1 Implement technical indicator calculations
+- [-] 4. AI Analysis Engine
+- [x] 4.1 Implement technical indicator calculations
   - Create backend/src/services/TechnicalIndicators.ts with calculation functions
   - Implement calculateRSI(prices: number[], period: number = 14): number using standard RSI formula (RS = avg gain / avg loss)
   - Implement calculateSMA(prices: number[], period: number): number for simple moving average
@@ -295,7 +303,7 @@
   - Generate whale alert events and broadcast to frontend
   - _Requirements: 6.5_
 
-- [ ] 4.3 Build insights generation system
+- [x] 4.3 Build insights generation system
   - Create backend/src/services/AIEngine.ts with AIEngine class
   - Implement generateInsights(symbol: string, marketData: MarketData): MarketInsight[] function
   - Calculate all technical indicators using TechnicalIndicators service (RSI, SMA crossover, volatility, volume)
@@ -308,7 +316,7 @@
   - Wire up insights routes in backend/src/index.ts
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 11.2_
 
-- [ ] 4.4 Create market data history API
+- [x] 4.4 Create market data history API
   - Create backend/src/routes/market.ts with endpoint: GET /api/market/history/:symbol
   - Support query params: interval (1m, 5m, 15m, 1h, 1d), start, end
   - Fetch historical candle data from Coinbase API or cache
@@ -316,6 +324,44 @@
   - Return candle data (timestamp, open, high, low, close, volume)
   - Wire up market routes in backend/src/index.ts
   - _Requirements: 1.1, 3.4_
+
+- [x] 4.5 Implement ML-based price prediction system (using local TimesFM Python service)
+- [x] 4.5.1 Set up Python ML service
+  - Create backend/ml-service/ directory for Python ML service
+  - Create setup.sh script to install Python dependencies and download TimesFM model
+  - Create requirements.txt with Flask, numpy, torch, pandas dependencies
+  - Create server.py Flask server with /predict and /batch-predict endpoints
+  - Model: google/timesfm-2.5-200m-pytorch (downloaded locally)
+  - _Requirements: 16.1, 16.4_
+
+- [x] 4.5.2 Implement Node.js ML client
+  - Create backend/src/ml/MLInferenceService.ts to call Python ML service
+  - Implement predict(symbol, prices, horizon) to call /predict endpoint
+  - Implement batchPredict(requests) to call /batch-predict endpoint
+  - Add health check to verify ML service availability
+  - Implement graceful fallback to technical analysis if ML service unavailable
+  - _Requirements: 16.2, 16.3, 16.8_
+
+- [x] 4.5.3 Update AIEngine for hybrid insights
+  - Update backend/src/services/AIEngine.ts to integrate ML predictions
+  - Combine ML predictions with technical analysis (RSI, SMA, volatility, volume)
+  - Generate natural language summaries including ML prediction details
+  - Implement 60-second caching for insights
+  - _Requirements: 16.5, 16.9_
+
+- [x] 4.5.4 Connect WebSocket data to ML service
+  - Update backend/src/routes/insights.ts with updatePriceHistory() function
+  - Update backend/src/services/MarketDataRelay.ts to feed price data to insights service
+  - Store rolling price history per symbol for ML predictions
+  - _Requirements: 16.4_
+
+- [x] 4.5.5 Update frontend InsightsView
+  - Update frontend/src/pages/InsightsView.tsx to use insightsStore
+  - Add ability to add/remove tracked coins
+  - Add "View Details" modal with full insight breakdown
+  - Show ML prediction details (direction, confidence, predicted change)
+  - Auto-refresh insights every 60 seconds
+  - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
 - [x] 5. Frontend State Management and Real-Time Data Integration
 - [x] 5.1 Create Zustand stores for application state

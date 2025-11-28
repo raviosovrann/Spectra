@@ -2,6 +2,8 @@ import { WebSocketManager } from './WebSocketManager.js'
 import { FrontendWebSocketServer, type BroadcastMessage } from './FrontendWebSocketServer.js'
 import logger from '../utils/logger.js'
 import type { TickerMessage } from '../types/websocket.js'
+import { updatePriceHistory } from '../routes/insights.js'
+import { whaleDetector } from './WhaleDetector.js'
 
 interface EnrichedTickerUpdate extends BroadcastMessage {
   type: 'ticker_batch'
@@ -30,20 +32,29 @@ interface ProductInfo {
   quoteIncrement: string
 }
 
-// Top cryptocurrency pairs available on Coinbase
+// Top cryptocurrency pairs available on Coinbase (updated Nov 2025)
+// Note: MATIC-USD was delisted, using POL-USD instead
 const TOP_CRYPTO_PAIRS = [
   'BTC-USD',
   'ETH-USD',
   'SOL-USD',
+  'ADA-USD',
   'DOGE-USD',
   'XRP-USD',
+  'DOT-USD',
+  'AVAX-USD',
+  'POL-USD', // Polygon (formerly MATIC)
   'LINK-USD',
+  'UNI-USD',
+  'ATOM-USD',
   'LTC-USD',
   'BCH-USD',
+  'ALGO-USD',
+  'XLM-USD',
   'AAVE-USD',
-  'UNI-USD',
-  'ADA-USD',
-  'AVAX-USD',
+  'NEAR-USD',
+  'APT-USD',
+  'ARB-USD',
 ]
 
 export class MarketDataRelay {
@@ -99,20 +110,28 @@ export class MarketDataRelay {
    * Initialize product information (names, etc.)
    */
   private initializeProductInfo(): void {
-    // Cryptocurrency names mapping
+    // Cryptocurrency names mapping (updated Nov 2025)
     const cryptoNames: Record<string, string> = {
       'BTC-USD': 'Bitcoin',
       'ETH-USD': 'Ethereum',
       'SOL-USD': 'Solana',
+      'ADA-USD': 'Cardano',
       'DOGE-USD': 'Dogecoin',
       'XRP-USD': 'Ripple',
+      'DOT-USD': 'Polkadot',
+      'AVAX-USD': 'Avalanche',
+      'POL-USD': 'Polygon',
       'LINK-USD': 'Chainlink',
+      'UNI-USD': 'Uniswap',
+      'ATOM-USD': 'Cosmos',
       'LTC-USD': 'Litecoin',
       'BCH-USD': 'Bitcoin Cash',
+      'ALGO-USD': 'Algorand',
+      'XLM-USD': 'Stellar',
       'AAVE-USD': 'Aave',
-      'UNI-USD': 'Uniswap',
-      'ADA-USD': 'Cardano',
-      'AVAX-USD': 'Avalanche',
+      'NEAR-USD': 'NEAR Protocol',
+      'APT-USD': 'Aptos',
+      'ARB-USD': 'Arbitrum',
     }
 
     TOP_CRYPTO_PAIRS.forEach((productId) => {
@@ -143,6 +162,7 @@ export class MarketDataRelay {
       await this.coinbaseWs.connect()
 
       // Subscribe to ticker channel for top cryptocurrencies
+      // Note: level2 channel requires authentication, so whale detection uses ticker volume spikes instead
       logger.info(`Subscribing to ticker channel for ${TOP_CRYPTO_PAIRS.length} pairs`)
       this.coinbaseWs.subscribe(TOP_CRYPTO_PAIRS, ['ticker'])
 
@@ -151,6 +171,16 @@ export class MarketDataRelay {
         if (message.type === 'ticker') {
           this.handleTickerMessage(message)
         }
+      })
+
+      // Register whale alert handler to broadcast to frontend
+      whaleDetector.onWhaleAlert((alert) => {
+        this.frontendWs.broadcast({
+          type: 'whale_alert',
+          alert,
+          timestamp: Date.now()
+        })
+        logger.info('Whale alert broadcasted', { symbol: alert.symbol, side: alert.side })
       })
 
       // Start batching mechanism
@@ -168,10 +198,20 @@ export class MarketDataRelay {
 
   /**
    * Handle incoming ticker messages from Coinbase
+   * Also detects whale activity based on volume spikes
    */
   private handleTickerMessage(message: TickerMessage): void {
     // Add to queue for batching
     this.updateQueue.set(message.productId, message)
+
+    // Detect whale activity from volume spikes in ticker data
+    // This is a fallback since level2 requires authentication
+    const symbol = message.productId.split('-')[0]
+    if (message.volume24h > 0 && message.price > 0) {
+      // Use volume as a proxy for large orders
+      // Whale detector will track average and detect spikes
+      whaleDetector.processOrder(symbol, 'buy', message.price, message.volume24h / 1000)
+    }
   }
 
   /**
@@ -247,6 +287,14 @@ export class MarketDataRelay {
     // Format timestamp
     const formattedTimestamp = new Date(ticker.timestamp).toISOString()
 
+    // Feed data to insights service for ML predictions
+    try {
+      updatePriceHistory(symbol, ticker.price, ticker.volume24h)
+    } catch (error) {
+      // Don't let ML errors affect market data relay
+      logger.debug('Failed to update price history', { symbol, error })
+    }
+
     return {
       symbol,
       name,
@@ -270,24 +318,28 @@ export class MarketDataRelay {
    * In production, this should fetch real-time supply from CoinGecko or similar API
    */
   private calculateMarketCap(symbol: string, price: number): number {
-    // Approximate circulating supply for major cryptocurrencies (as of 2024)
+    // Approximate circulating supply (updated Nov 2025)
     const circulatingSupply: Record<string, number> = {
       'BTC': 19700000,
       'ETH': 120000000,
       'SOL': 400000000,
+      'ADA': 35000000000,
       'DOGE': 140000000000,
       'XRP': 53000000000,
+      'DOT': 1200000000,
+      'AVAX': 350000000,
+      'POL': 10000000000, // Polygon (formerly MATIC)
       'LINK': 500000000,
+      'UNI': 750000000,
+      'ATOM': 290000000,
       'LTC': 74000000,
       'BCH': 19700000,
-      'AAVE': 16000000,
-      'UNI': 750000000,
-      'ADA': 35000000000,
-      'AVAX': 350000000,
-      'DOT': 1200000000,
-      'SHIB': 589000000000000,
-      'ATOM': 290000000,
       'ALGO': 7000000000,
+      'XLM': 28000000000,
+      'AAVE': 16000000,
+      'NEAR': 1000000000,
+      'APT': 300000000,
+      'ARB': 1300000000,
     }
 
     const supply = circulatingSupply[symbol] || 0

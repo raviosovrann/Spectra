@@ -302,6 +302,9 @@ interface AIEngine {
   detectSMACrossover(prices: number[]): 'bullish' | 'bearish' | 'neutral'
   analyzeVolume(current: number, average: number): VolumeAnalysis
   generateInsights(marketData: MarketData[]): MarketInsight[]
+  // ML-powered methods
+  predictPrice(symbol: string, horizon: '1h' | '4h' | '24h'): Promise<PricePrediction>
+  getHybridInsights(marketData: MarketData[]): Promise<HybridInsight[]>
 }
 
 interface VolumeAnalysis {
@@ -309,7 +312,375 @@ interface VolumeAnalysis {
   isSignificant: boolean // >150% of average
   trend: 'increasing' | 'decreasing' | 'stable'
 }
+
+interface PricePrediction {
+  symbol: string
+  horizon: '1h' | '4h' | '24h'
+  direction: 'up' | 'down' | 'neutral'
+  confidence: number // 0-100
+  predictedChange: number // percentage
+  timestamp: number
+  modelVersion: string
+}
+
+interface HybridInsight {
+  id: string
+  symbol: string
+  signal: 'bullish' | 'bearish' | 'neutral'
+  confidence: number
+  summary: string
+  mlPrediction?: PricePrediction
+  technicalSignals: TechnicalSignal[]
+  timestamp: number
+}
+
+interface TechnicalSignal {
+  indicator: string
+  value: number
+  signal: 'bullish' | 'bearish' | 'neutral'
+}
 ```
+
+## Machine Learning Architecture
+
+### ML Model Design
+
+The Spectra ML system uses Google's TimesFM foundation model running locally via a Python Flask service. The Node.js backend calls this service for ML predictions and combines them with technical analysis to generate actionable trading recommendations (BUY/SELL/HOLD).
+
+**Model:**
+
+- **TimesFM 2.5** - `google/timesfm-2.5-200m-pytorch`
+  - Zero-shot time series forecasting
+  - Pre-trained on large time series corpus (ICML 2024)
+  - Runs locally (no API costs)
+  - ~500MB model size
+  - Supports 1-day, 7-day, and 30-day prediction horizons
+
+### ML Service Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Frontend - React"
+        InsightsUI[Insights Page]
+        HorizonFilter[Horizon Filter<br/>1d / 7d / 30d]
+        InsightsStore[insightsStore]
+    end
+
+    subgraph "Node.js Backend :3001"
+        subgraph "Real-Time Data Pipeline"
+            CoinbaseWS[Coinbase WebSocket] --> WSManager[WebSocketManager]
+            WSManager --> Relay[MarketDataRelay]
+            Relay --> PriceStore[(Price History Store<br/>200 prices per symbol)]
+            Relay --> FrontendWS[Frontend WebSocket :3002]
+        end
+        
+        subgraph "AI Engine"
+            InsightsAPI[/api/insights/:symbol] --> AIEngine[AIEngine]
+            AIEngine --> TechIndicators[Technical Indicators<br/>RSI, SMA, Volatility, Volume]
+            AIEngine --> MLClient[MLInferenceService]
+            TechIndicators --> Combiner[Signal Combiner<br/>Weighted Voting]
+            MLClient --> Combiner
+            Combiner --> Recommendation[BUY / SELL / HOLD<br/>with Confidence %]
+        end
+    end
+
+    subgraph "Python ML Service :5001"
+        MLClient -->|HTTP POST /predict| Flask[Flask Server]
+        Flask --> ModelLoader[Model Loader]
+        ModelLoader --> TimesFM[TimesFM 2.5<br/>200M Parameters]
+        TimesFM --> Forecast[Point Forecast +<br/>Quantile Forecast]
+        Forecast --> Confidence[Confidence Calculator]
+        Confidence --> Response[JSON Response]
+    end
+
+    InsightsUI --> HorizonFilter
+    HorizonFilter --> InsightsStore
+    InsightsStore -->|fetch| InsightsAPI
+    FrontendWS --> InsightsStore
+    Response -->|HTTP Response| MLClient
+```
+
+### ML Service Data Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant MLService
+    participant TimesFM
+
+    User->>Frontend: Select prediction horizon (1d/7d/30d)
+    Frontend->>Backend: GET /api/insights/BTC?horizon=7
+    Backend->>Backend: Get price history (200 data points)
+    Backend->>Backend: Calculate technical indicators
+    Backend->>MLService: POST /predict {prices, horizon: 7}
+    MLService->>TimesFM: model.forecast(horizon=7, inputs=[prices])
+    TimesFM-->>MLService: point_forecast, quantile_forecast
+    MLService->>MLService: Calculate direction & confidence
+    MLService-->>Backend: {direction, confidence, predicted_change, forecast}
+    Backend->>Backend: Combine ML + Technical signals
+    Backend->>Backend: Generate BUY/SELL/HOLD recommendation
+    Backend-->>Frontend: {insight with recommendation}
+    Frontend-->>User: Display actionable insight
+```
+
+**Python ML Service (`backend/ml-service/`):**
+
+```python
+# server.py - Flask service running TimesFM locally
+import timesfm
+from flask import Flask, request, jsonify
+
+model = timesfm.TimesFM_2p5_200M_torch.from_pretrained(
+    "google/timesfm-2.5-200m-pytorch"
+)
+model.compile(timesfm.ForecastConfig(
+    max_context=1024,
+    max_horizon=256,
+    normalize_inputs=True
+))
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.json
+    prices = np.array(data['prices'])
+    horizon = data['horizon']
+    
+    point_forecast, quantile_forecast = model.forecast(
+        horizon=horizon,
+        inputs=[prices]
+    )
+    
+    return jsonify({
+        'direction': 'up' if forecast[-1] > prices[-1] else 'down',
+        'confidence': calculate_confidence(quantile_forecast),
+        'forecast': forecast.tolist()
+    })
+```
+
+**Node.js ML Client:**
+
+```typescript
+// backend/src/ml/MLInferenceService.ts
+class MLInferenceService {
+  private mlServiceUrl = process.env.ML_SERVICE_URL || 'http://localhost:5001'
+  
+  async predict(symbol: string, prices: number[], horizon: number): Promise<PricePrediction | null> {
+    const response = await fetch(`${this.mlServiceUrl}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol, prices, horizon })
+    })
+    return response.json()
+  }
+}
+```
+
+**Hybrid Signal Generation:**
+
+The AIEngine combines ML predictions with technical analysis:
+
+```typescript
+// backend/src/services/AIEngine.ts
+async function generateInsights(symbol: string, marketData: MarketData): Promise<MarketInsight[]> {
+  // Calculate technical indicators
+  const rsi = calculateRSI(marketData.priceHistory)
+  const smaCrossover = detectSMACrossover(marketData.priceHistory)
+  const volatility = calculateVolatility(marketData.priceHistory)
+  
+  // Get ML prediction (if service available)
+  const mlPrediction = await mlInferenceService.predict(symbol, marketData.priceHistory, 7)
+  
+  // Generate insights combining both signals
+  const insights: MarketInsight[] = []
+  
+  if (mlPrediction && mlPrediction.confidence >= 60) {
+    insights.push({
+      symbol,
+      signal: mlPrediction.direction === 'up' ? 'bullish' : 'bearish',
+      confidence: mlPrediction.confidence,
+      summary: `AI predicts ${symbol} will ${mlPrediction.direction}...`,
+      mlPrediction,
+      indicators: { rsi, volatility }
+    })
+  }
+  
+  // Add technical analysis insights (RSI, SMA crossover, volume)
+  // ...
+  
+  return insights
+}
+    
+    // Run TimesFM prediction
+    const timesfmResult = await this.timesfmPipeline(timeSeriesInput, {
+      prediction_length: this.horizonToDays(horizon)
+    })
+    
+    // Calculate direction and confidence
+    const prediction = this.processPrediction(timesfmResult, features)
+    
+    // Cache result
+    this.cacheResult(symbol, horizon, prediction)
+    
+    return prediction
+  }
+  
+  private processPrediction(
+    modelOutput: any,
+    features: FeatureSet
+  ): PricePrediction {
+    const predictedPrices = modelOutput.predictions
+    const currentPrice = features.priceHistory[features.priceHistory.length - 1]
+    const predictedPrice = predictedPrices[predictedPrices.length - 1]
+    
+    const percentChange = ((predictedPrice - currentPrice) / currentPrice) * 100
+    const direction = percentChange > 1 ? 'up' : percentChange < -1 ? 'down' : 'neutral'
+    
+    // Confidence based on model certainty and technical alignment
+    const confidence = this.calculateConfidence(modelOutput, features, direction)
+    
+    return {
+      symbol: features.symbol,
+      direction,
+      confidence,
+      predictedChange: percentChange,
+      predictedPrice,
+      horizon: this.horizon,
+      timestamp: Date.now(),
+      modelVersion: 'timesfm-2.0'
+    }
+  }
+}
+```
+
+**Hybrid Signal Generation:**
+
+```typescript
+class HybridSignalGenerator {
+  private mlService: MLInferenceService
+  private technicalAnalyzer: TechnicalIndicators
+  
+  async generateHybridInsight(
+    symbol: string,
+    marketData: MarketData
+  ): Promise<HybridInsight> {
+    // Get ML prediction (with fallback)
+    let mlPrediction: PricePrediction | null = null
+    try {
+      mlPrediction = await this.mlService.predict(symbol, '1d')
+    } catch (error) {
+      console.warn(`ML prediction failed for ${symbol}, using technical only`)
+    }
+    
+    // Get technical signals
+    const technicalSignals = this.technicalAnalyzer.analyze(marketData)
+    
+    // Combine signals with weighted voting
+    const combinedSignal = this.combineSignals(mlPrediction, technicalSignals)
+    
+    return {
+      id: generateId(),
+      symbol,
+      signal: combinedSignal.direction,
+      confidence: combinedSignal.confidence,
+      summary: this.generateSummary(mlPrediction, technicalSignals),
+      mlPrediction,
+      technicalSignals,
+      timestamp: Date.now()
+    }
+  }
+  
+  private combineSignals(
+    ml: PricePrediction | null,
+    technical: TechnicalSignal[]
+  ): CombinedSignal {
+    // If ML available and confident, use 60/40 weighting
+    // Otherwise, use technical analysis only
+    const mlWeight = ml && ml.confidence > 60 ? 0.6 : 0
+    const techWeight = mlWeight > 0 ? 0.4 : 1.0
+    
+    // Calculate technical consensus
+    const techSignal = this.calculateTechnicalConsensus(technical)
+    
+    if (mlWeight === 0) {
+      return techSignal
+    }
+    
+    // Weighted combination
+    const mlScore = this.signalToScore(ml!.direction) * mlWeight
+    const techScore = this.signalToScore(techSignal.direction) * techWeight
+    const combinedScore = mlScore + techScore
+    
+    return {
+      direction: this.scoreToSignal(combinedScore),
+      confidence: (ml!.confidence * mlWeight) + (techSignal.confidence * techWeight)
+    }
+  }
+}
+```
+
+**Daily Update Workflow:**
+
+```typescript
+class DailyUpdateService {
+  private featureExtractor: FeatureExtractor
+  private mlService: MLInferenceService
+  private symbols: string[] = ['BTC', 'ETH', 'SOL', 'ADA', ...]
+  
+  // Called daily at market close (or on WebSocket daily candle)
+  async updatePredictions(): Promise<void> {
+    for (const symbol of this.symbols) {
+      // Update feature buffer with latest daily data
+      const dailyData = await this.fetchDailyClose(symbol)
+      this.featureExtractor.updateBuffer(
+        symbol,
+        dailyData.close,
+        dailyData.volume
+      )
+      
+      // Generate new predictions
+      const prediction = await this.mlService.predict(symbol, '1d')
+      
+      // Store prediction for API access
+      await this.storePrediction(symbol, prediction)
+      
+      // Broadcast to connected clients
+      this.broadcastPrediction(symbol, prediction)
+    }
+  }
+  
+  // Called on each WebSocket ticker update for real-time adjustments
+  onTickerUpdate(symbol: string, price: number, volume: number): void {
+    // Update intraday buffer (not used for daily model, but for technical indicators)
+    this.featureExtractor.updateIntradayBuffer(symbol, price, volume)
+  }
+}
+```
+
+**Model Storage and Caching:**
+
+```
+backend/
+├── ml/
+│   ├── cache/
+│   │   └── predictions/     # Cached predictions (60s TTL)
+│   ├── models/
+│   │   └── .gitkeep         # Models downloaded from HuggingFace at runtime
+│   ├── FeatureExtractor.ts
+│   ├── MLInferenceService.ts
+│   ├── HybridSignalGenerator.ts
+│   ├── DailyUpdateService.ts
+│   └── types.ts
+```
+
+**Performance Considerations:**
+
+- Models are loaded once at server startup
+- Predictions cached for 60 seconds to reduce inference overhead
+- Feature extraction uses rolling buffers to avoid recalculation
+- Batch predictions for multiple symbols when possible
+- Fallback to technical analysis if ML inference fails
 
 **Coinbase API Client:**
 
