@@ -3,6 +3,7 @@ import { Mail, Lock, User, ArrowRight, Check } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import Loader from '../components/Loader'
 
 export default function Signup() {
   const navigate = useNavigate()
@@ -15,6 +16,7 @@ export default function Signup() {
     confirmPassword: '',
   })
   const [localError, setLocalError] = useState<string | null>(null)
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,7 +50,10 @@ export default function Signup() {
         emailAddress: formData.emailAddress,
         password: formData.password,
       })
-      navigate('/dashboard')
+      setIsRedirecting(true)
+      setTimeout(() => {
+        navigate('/dashboard')
+      }, 1500)
     } catch (err) {
       setLocalError(error || 'Registration failed. Please try again.')
     }
@@ -60,6 +65,10 @@ export default function Signup() {
       [e.target.name]: e.target.value,
     })
     setLocalError(null)
+  }
+
+  if (isRedirecting) {
+    return <Loader fullScreen text="Creating your account..." />
   }
 
   return (

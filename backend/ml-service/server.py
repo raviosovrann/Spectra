@@ -13,8 +13,13 @@ from flask_cors import CORS
 from datetime import datetime
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging - reduce verbosity
+logging.basicConfig(
+    level=logging.WARNING,  # Only show warnings and errors
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+# Reduce werkzeug logging
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)

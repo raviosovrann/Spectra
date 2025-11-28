@@ -16,7 +16,11 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "devDependencies": {
+    "@types/styled-components": "^5.1.36",
     "concurrently": "^8.2.2",
     "prettier": "^3.1.0"
+  },
+  "dependencies": {
+    "styled-components": "^6.1.19"
   }
 }

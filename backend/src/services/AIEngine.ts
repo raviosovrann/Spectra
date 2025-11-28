@@ -19,6 +19,7 @@ import {
   calculateStochastic,
   calculateEMA,
 } from './TechnicalIndicators'
+import { whaleDetector } from './WhaleDetector'
 
 export interface MarketData {
   symbol: string
@@ -62,8 +63,11 @@ export async function generateInsights(
     mlPrediction = await mlInferenceService.predict(symbol, marketData.priceHistory, horizon)
   }
 
-  // Calculate composite signal
-  const signals = calculateCompositeSignal(rsi, smaCrossover, volumeAnalysis, marketData.change24h, mlPrediction)
+  // Get whale activity for this symbol
+  const whaleActivity = getWhaleActivity(symbol)
+
+  // Calculate composite signal including whale activity
+  const signals = calculateCompositeSignal(rsi, smaCrossover, volumeAnalysis, marketData.change24h, mlPrediction, whaleActivity)
 
   // Calculate ALL technical indicators for detailed view (8-10 indicators)
   const momentum = calculateMomentum(marketData.priceHistory)
@@ -149,6 +153,30 @@ interface CompositeSignal {
   confidence: number
   recommendation: 'BUY' | 'SELL' | 'HOLD'
   primaryReason: string
+  whaleImpact?: 'bullish' | 'bearish' | 'neutral'
+}
+
+interface WhaleActivitySummary {
+  recentBuys: number
+  recentSells: number
+  netFlow: 'bullish' | 'bearish' | 'neutral'
+  totalUsdValue: number
+}
+
+/**
+ * Get recent whale activity for a symbol
+ */
+function getWhaleActivity(symbol: string): WhaleActivitySummary {
+  const alerts = whaleDetector.getAlertsForSymbol(symbol, 10) // Last 10 alerts
+  const recentBuys = alerts.filter(a => a.side === 'buy').length
+  const recentSells = alerts.filter(a => a.side === 'sell').length
+  const totalUsdValue = alerts.reduce((sum, a) => sum + a.usdValue, 0)
+  
+  let netFlow: 'bullish' | 'bearish' | 'neutral' = 'neutral'
+  if (recentBuys > recentSells + 1) netFlow = 'bullish'
+  else if (recentSells > recentBuys + 1) netFlow = 'bearish'
+  
+  return { recentBuys, recentSells, netFlow, totalUsdValue }
 }
 
 /**
@@ -159,7 +187,8 @@ function calculateCompositeSignal(
   smaCrossover: 'bullish' | 'bearish' | 'neutral',
   volumeAnalysis: { change: number; isSignificant: boolean },
   change24h: number,
-  mlPrediction: PricePrediction | null
+  mlPrediction: PricePrediction | null,
+  whaleActivity: WhaleActivitySummary
 ): CompositeSignal {
   let bullishScore = 0
   let bearishScore = 0
@@ -210,6 +239,20 @@ function calculateCompositeSignal(
     }
   }
 
+  // Whale Activity (weight: 15% - significant market signal)
+  let whaleImpact: 'bullish' | 'bearish' | 'neutral' = 'neutral'
+  if (whaleActivity.recentBuys > 0 || whaleActivity.recentSells > 0) {
+    if (whaleActivity.netFlow === 'bullish') {
+      bullishScore += 15
+      whaleImpact = 'bullish'
+      if (!primaryReason) primaryReason = 'Whale Accumulation'
+    } else if (whaleActivity.netFlow === 'bearish') {
+      bearishScore += 15
+      whaleImpact = 'bearish'
+      if (!primaryReason) primaryReason = 'Whale Distribution'
+    }
+  }
+
   // 24h momentum (weight: 10%)
   if (change24h > 5) {
     bullishScore += 10
@@ -246,7 +289,7 @@ function calculateCompositeSignal(
     if (!primaryReason) primaryReason = 'Mixed Signals'
   }
 
-  return { direction, confidence, recommendation, primaryReason }
+  return { direction, confidence, recommendation, primaryReason, whaleImpact }
 }
 
 /**
@@ -273,47 +316,53 @@ function generateActionableSummary(
     const targetPrice = currentPrice * (1 + mlPrediction.predictedChange / 100)
     const formattedTarget = targetPrice >= 1 ? targetPrice.toFixed(2) : targetPrice.toFixed(4)
     summary += `AI predicts ${symbol} will ${direction} ${Math.abs(mlPrediction.predictedChange).toFixed(1)}% to $${formattedTarget} by ${horizonText}. `
-  } else if (!mlPrediction && currentPrice > 0) {
-    // No ML prediction available - explain why
-    summary += `Waiting for more market data to generate ML prediction. `
+  } else if (currentPrice > 0) {
+    // No strong ML prediction - provide context based on current analysis
+    if (signals.recommendation === 'BUY') {
+      summary += `Technical analysis suggests ${symbol} is positioned for upward movement over ${horizonText}. `
+    } else if (signals.recommendation === 'SELL') {
+      summary += `Technical analysis indicates ${symbol} may face downward pressure over ${horizonText}. `
+    } else {
+      summary += `${symbol} is consolidating with mixed signals. Consider waiting for a clearer trend over ${horizonText}. `
+    }
   }
 
   // Add technical context with actionable language
   const technicalParts: string[] = []
   
   if (rsi > 70) {
-    technicalParts.push(`RSI ${rsi.toFixed(0)} (overbought - consider taking profits)`)
+    technicalParts.push(`RSI at ${rsi.toFixed(0)} signals overbought conditions — consider taking profits`)
   } else if (rsi < 30) {
-    technicalParts.push(`RSI ${rsi.toFixed(0)} (oversold - potential buying opportunity)`)
+    technicalParts.push(`RSI at ${rsi.toFixed(0)} signals oversold conditions — potential buying opportunity`)
   } else if (rsi > 60) {
-    technicalParts.push(`RSI ${rsi.toFixed(0)} (approaching overbought)`)
+    technicalParts.push(`RSI at ${rsi.toFixed(0)} showing bullish momentum`)
   } else if (rsi < 40) {
-    technicalParts.push(`RSI ${rsi.toFixed(0)} (approaching oversold)`)
+    technicalParts.push(`RSI at ${rsi.toFixed(0)} showing bearish pressure`)
+  } else {
+    technicalParts.push(`RSI at ${rsi.toFixed(0)} in neutral territory`)
   }
 
   if (smaCrossover === 'bullish') {
-    technicalParts.push('Golden Cross forming (bullish trend)')
+    technicalParts.push('Golden Cross detected (strong bullish signal)')
   } else if (smaCrossover === 'bearish') {
-    technicalParts.push('Death Cross forming (bearish trend)')
+    technicalParts.push('Death Cross detected (strong bearish signal)')
   }
 
   if (volumeAnalysis.isSignificant && volumeAnalysis.change > 50) {
-    technicalParts.push(`${volumeAnalysis.change.toFixed(0)}% volume spike (high activity)`)
+    technicalParts.push(`Volume up ${volumeAnalysis.change.toFixed(0)}% — high market interest`)
   } else if (volumeAnalysis.change < -30) {
-    technicalParts.push(`Volume ${Math.abs(volumeAnalysis.change).toFixed(0)}% below average (low interest)`)
+    technicalParts.push(`Volume down ${Math.abs(volumeAnalysis.change).toFixed(0)}% — low market activity`)
+  }
+
+  // Add whale activity insight
+  if (signals.whaleImpact === 'bullish') {
+    technicalParts.push('Whale accumulation detected — institutional buying pressure')
+  } else if (signals.whaleImpact === 'bearish') {
+    technicalParts.push('Whale distribution detected — large holders selling')
   }
 
   if (technicalParts.length > 0) {
     summary += technicalParts.join('. ') + '.'
-  }
-
-  // If no meaningful signals, provide helpful context
-  if (!mlPrediction && technicalParts.length === 0) {
-    if (currentPrice === 0) {
-      summary += `Waiting for live market data from Coinbase WebSocket.`
-    } else {
-      summary += `${symbol} showing neutral momentum with RSI at ${rsi.toFixed(0)}. Wait for clearer signals before trading.`
-    }
   }
 
   return summary

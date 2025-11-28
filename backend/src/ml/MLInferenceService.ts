@@ -78,12 +78,12 @@ export class MLInferenceService {
     }
 
     if (!this.isAvailable) {
-      console.warn('ML service not available, skipping prediction');
+      // Don't log every time - just skip silently
       return null;
     }
 
     if (prices.length < 30) {
-      console.warn(`Insufficient data for ${symbol}: need 30 prices, got ${prices.length}`);
+      // Don't log - insufficient data is expected for new coins
       return null;
     }
 
@@ -96,7 +96,10 @@ export class MLInferenceService {
       });
 
       if (!response.ok) {
-        console.error(`ML prediction failed: ${response.status}`);
+        // Only log actual errors, not expected failures
+        if (response.status >= 500) {
+          console.error(`ML prediction failed: ${response.status}`);
+        }
         return null;
       }
 

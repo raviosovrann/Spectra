@@ -53,7 +53,7 @@ describe('TechnicalIndicators - RSI Calculation', () => {
   })
 
   it('should return value between 0 and 100', () => {
-    const prices = Array.from({ length: 20 }, (_, i) => 100 + Math.random() * 10)
+    const prices = Array.from({ length: 20 }, () => 100 + Math.random() * 10)
     const rsi = calculateRSI(prices, 14)
     
     expect(rsi).toBeGreaterThanOrEqual(0)

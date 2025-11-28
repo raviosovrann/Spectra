@@ -100,25 +100,36 @@ export class WebSocketManager {
   }
 
   /**
-   * Subscribe to ticker and level2 channels for specified products
+   * Subscribe to channels for specified products
+   * Note: level2/level3/full channels require authentication (not implemented)
+   * Use ticker channel for real-time price updates (no auth required)
    */
-  subscribe(productIds: string[], channels: string[] = ['ticker', 'level2']): void {
+  subscribe(productIds: string[], channels: string[] = ['ticker']): void {
     if (!this.ws || this.connectionStatus !== 'connected') {
       logger.warn('Cannot subscribe: WebSocket not connected')
       return
     }
 
+    // Filter out channels that require authentication
+    const authRequiredChannels = ['level2', 'level3', 'full']
+    const filteredChannels = channels.filter(c => !authRequiredChannels.includes(c))
+    
+    if (filteredChannels.length !== channels.length) {
+      const skipped = channels.filter(c => authRequiredChannels.includes(c))
+      logger.warn(`Skipping authenticated channels: ${skipped.join(', ')}`)
+    }
+
     this.subscribedProducts = productIds
-    this.subscribedChannels = channels
+    this.subscribedChannels = filteredChannels
 
     const subscribeMessage = {
       type: 'subscribe',
       product_ids: productIds,
-      channels: channels,
+      channels: filteredChannels,
     }
 
     this.ws.send(JSON.stringify(subscribeMessage))
-    logger.info(`Subscribed to ${channels.join(', ')} for ${productIds.length} products`)
+    logger.info(`Subscribed to ${filteredChannels.join(', ')} for ${productIds.length} products`)
   }
 
   /**

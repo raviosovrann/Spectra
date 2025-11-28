@@ -1,10 +1,11 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Sun, Moon, Menu, X, Settings, LogOut } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useUserStore } from '../../stores/userStore'
 import { useAuth } from '../../hooks/useAuth'
 import { useWebSocket } from '../../hooks/useWebSocket'
+import Loader from '../Loader'
 
 // Page icons
 import investingIcon from '../../assets/investing-page.svg'
@@ -32,6 +33,29 @@ export default function DashboardLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const accountMenuRef = useRef<HTMLDivElement>(null)
+  const [isPageLoading, setIsPageLoading] = useState(true)
+  const [isNavigating, setIsNavigating] = useState(false)
+  const previousPath = useRef(location.pathname)
+
+  // Initial page load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsPageLoading(false)
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Route change detection
+  useEffect(() => {
+    if (previousPath.current !== location.pathname) {
+      setIsNavigating(true)
+      const timer = setTimeout(() => {
+        setIsNavigating(false)
+      }, 600)
+      previousPath.current = location.pathname
+      return () => clearTimeout(timer)
+    }
+  }, [location.pathname])
 
   // Close account menu when clicking outside
   useEffect(() => {
@@ -298,8 +322,30 @@ export default function DashboardLayout() {
       )}
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <Outlet />
+      <main className="container mx-auto px-4 py-8 relative">
+        <AnimatePresence mode="wait">
+          {(isPageLoading || isNavigating) ? (
+            <motion.div
+              key="loader"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center justify-center py-24"
+            >
+              <Loader text={isPageLoading ? "Loading dashboard..." : undefined} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Outlet />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Mobile Bottom Navigation - Hide on profile/settings page */}

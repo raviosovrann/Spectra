@@ -3,6 +3,7 @@ import { Mail, Lock, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import Loader from '../components/Loader'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -10,6 +11,7 @@ export default function Login() {
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,10 +24,17 @@ export default function Login() {
 
     try {
       await login({ identifier, password })
-      navigate('/dashboard')
+      setIsRedirecting(true)
+      setTimeout(() => {
+        navigate('/dashboard')
+      }, 1500)
     } catch (err) {
       setLocalError(error || 'Login failed. Please try again.')
     }
+  }
+
+  if (isRedirecting) {
+    return <Loader fullScreen text="Signing you in..." />
   }
 
   return (

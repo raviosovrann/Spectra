@@ -7,6 +7,15 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+// Version for migration - increment this to reset persisted state
+const STORE_VERSION = 3
+
+// Default tracked coins - same 20 coins as Investing view
+const VALID_COINS = new Set([
+  'BTC', 'ETH', 'SOL', 'ADA', 'DOGE', 'XRP', 'DOT', 'AVAX', 'POL', 'LINK',
+  'UNI', 'ATOM', 'LTC', 'BCH', 'ALGO', 'XLM', 'AAVE', 'NEAR', 'APT', 'ARB'
+])
+
 export interface MarketInsight {
   id: string
   symbol: string
@@ -90,11 +99,8 @@ interface InsightsState {
   fetchInsightForSymbol: (symbol: string) => Promise<MarketInsight | null>
 }
 
-// Default tracked coins - same 20 coins as Investing view
-const DEFAULT_TRACKED_COINS = [
-  'BTC', 'ETH', 'SOL', 'ADA', 'DOGE', 'XRP', 'DOT', 'AVAX', 'POL', 'LINK',
-  'UNI', 'ATOM', 'LTC', 'BCH', 'ALGO', 'XLM', 'AAVE', 'NEAR', 'APT', 'ARB'
-]
+// Default tracked coins - derived from VALID_COINS set
+const DEFAULT_TRACKED_COINS = Array.from(VALID_COINS)
 
 export const useInsightsStore = create<InsightsState>()(
   persist(
@@ -160,33 +166,26 @@ export const useInsightsStore = create<InsightsState>()(
             return
           }
 
-          const allInsights: MarketInsight[] = []
-
-          // Fetch insights for each tracked coin with horizon
-          for (const symbol of trackedCoins) {
-            try {
-              const response = await fetch(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/insights/${symbol}?horizon=${horizon}`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
-              )
-
-              if (response.ok) {
-                const data = await response.json()
-                if (data.insights && data.insights.length > 0) {
-                  allInsights.push(...data.insights)
-                }
-              }
-            } catch (err) {
-              console.warn(`Failed to fetch insights for ${symbol}:`, err)
+          // Use batch endpoint to fetch all insights in a single request
+          const response = await fetch(
+            `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/insights?horizon=${horizon}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
             }
+          )
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch insights')
           }
 
-          // Sort by confidence
-          allInsights.sort((a, b) => b.confidence - a.confidence)
+          const data = await response.json()
+          
+          // Filter insights to only include tracked coins
+          const allInsights: MarketInsight[] = (data.insights || [])
+            .filter((insight: MarketInsight) => trackedCoins.includes(insight.symbol))
+            .sort((a: MarketInsight, b: MarketInsight) => b.confidence - a.confidence)
 
           set({
             insights: allInsights,
@@ -264,9 +263,30 @@ export const useInsightsStore = create<InsightsState>()(
     }),
     {
       name: 'spectra-insights',
+      version: STORE_VERSION,
       partialize: (state) => ({
         trackedCoins: state.trackedCoins,
       }),
+      // Migration to clean up invalid coins (MATIC, VET, FIL, EOS, etc.)
+      migrate: (persistedState: unknown, version: number) => {
+        if (version < STORE_VERSION) {
+          const state = persistedState as { trackedCoins?: string[] }
+          // Filter out any coins that are not in the valid list
+          if (state?.trackedCoins) {
+            state.trackedCoins = state.trackedCoins.filter(coin => VALID_COINS.has(coin))
+            // Ensure all valid coins are present
+            VALID_COINS.forEach(coin => {
+              if (!state.trackedCoins!.includes(coin)) {
+                state.trackedCoins!.push(coin)
+              }
+            })
+          } else {
+            state.trackedCoins = Array.from(VALID_COINS)
+          }
+          return state as InsightsState
+        }
+        return persistedState as InsightsState
+      },
     }
   )
 )

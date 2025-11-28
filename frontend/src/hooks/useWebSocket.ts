@@ -37,15 +37,23 @@ const CRYPTO_NAMES: Record<string, string> = {
   BTC: 'Bitcoin',
   ETH: 'Ethereum',
   SOL: 'Solana',
+  ADA: 'Cardano',
   DOGE: 'Dogecoin',
   XRP: 'Ripple',
+  DOT: 'Polkadot',
+  AVAX: 'Avalanche',
+  POL: 'Polygon',
   LINK: 'Chainlink',
+  UNI: 'Uniswap',
+  ATOM: 'Cosmos',
   LTC: 'Litecoin',
   BCH: 'Bitcoin Cash',
+  ALGO: 'Algorand',
+  XLM: 'Stellar',
   AAVE: 'Aave',
-  UNI: 'Uniswap',
-  ADA: 'Cardano',
-  AVAX: 'Avalanche',
+  NEAR: 'NEAR Protocol',
+  APT: 'Aptos',
+  ARB: 'Arbitrum',
 }
 
 export function useWebSocket(): UseWebSocketReturn {
@@ -56,6 +64,7 @@ export function useWebSocket(): UseWebSocketReturn {
   const messageHandlersRef = useRef<Map<string, MessageHandler[]>>(new Map())
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastMessageTimeRef = useRef<number>(Date.now())
+  const isUnmountingRef = useRef(false)
   
   const maxReconnectAttempts = 5
   const baseDelay = 2000 // 2 seconds
@@ -122,9 +131,6 @@ export function useWebSocket(): UseWebSocketReturn {
       
       // Handle ticker batch updates from MarketDataRelay
       if (message.type === 'ticker_batch' && message.updates && Array.isArray(message.updates)) {
-        console.log('[WebSocket] Received ticker_batch with', message.updates.length, 'updates')
-        console.log('[WebSocket] Sample update:', message.updates[0])
-        
         const cryptos: Cryptocurrency[] = message.updates.map((ticker) => {
           const symbol = ticker.symbol || ticker.productId?.split('-')[0] || ''
           const crypto = {
@@ -160,12 +166,22 @@ export function useWebSocket(): UseWebSocketReturn {
   }, [marketStore])
 
   const connect = useCallback(() => {
+    // Reset unmounting flag when trying to connect
+    isUnmountingRef.current = false
+    
     // Don't connect if already connected or connecting
     if (
       wsRef.current?.readyState === WebSocket.OPEN ||
       wsRef.current?.readyState === WebSocket.CONNECTING
     ) {
       return
+    }
+
+    // Clear any existing connection first
+    if (wsRef.current) {
+      wsRef.current.onclose = null // Prevent reconnection logic
+      wsRef.current.close()
+      wsRef.current = null
     }
 
     // Get JWT token from localStorage
@@ -206,9 +222,19 @@ export function useWebSocket(): UseWebSocketReturn {
       }
 
       ws.onclose = (event) => {
+        // Only handle if this is still the current connection
+        if (wsRef.current !== ws) {
+          return
+        }
+        
         setStatus('disconnected')
         wsRef.current = null
         stopHeartbeat()
+
+        // Don't attempt reconnection if component is unmounting
+        if (isUnmountingRef.current) {
+          return
+        }
 
         // Attempt reconnection if not a normal closure and under max attempts
         if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
@@ -221,12 +247,16 @@ export function useWebSocket(): UseWebSocketReturn {
           }, delay)
         }
       }
-    } catch (error) {
-      setStatus('disconnected')
+    } catch {
+      // Silently handle connection errors during page transitions
+      if (!isUnmountingRef.current) {
+        setStatus('disconnected')
+      }
     }
   }, [handleMessage, calculateBackoffDelay, startHeartbeat, stopHeartbeat])
 
   const disconnect = useCallback(() => {
+    isUnmountingRef.current = true
     stopHeartbeat()
     
     if (reconnectTimeoutRef.current) {

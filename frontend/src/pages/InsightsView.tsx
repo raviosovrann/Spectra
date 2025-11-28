@@ -1,13 +1,41 @@
 import { useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TrendingUp, TrendingDown, Activity, Sparkles, AlertCircle, Plus, X, RefreshCw, Brain, ChevronRight, Fish } from 'lucide-react'
+import { TrendingUp, TrendingDown, Activity, Sparkles, AlertCircle, Plus, X, RefreshCw, Brain, ChevronRight, Fish, Filter } from 'lucide-react'
 import { useInsightsStore, MarketInsight } from '../stores/insightsStore'
+import Loader from '../components/Loader'
 
-// Available coins to add (updated Nov 2025 - MATIC delisted, using POL)
+// Available coins - same 20 coins as Investing and backend
 const AVAILABLE_COINS = [
   'BTC', 'ETH', 'SOL', 'ADA', 'DOGE', 'XRP', 'DOT', 'AVAX', 'POL', 'LINK',
   'UNI', 'ATOM', 'LTC', 'BCH', 'ALGO', 'XLM', 'AAVE', 'NEAR', 'APT', 'ARB'
 ]
+
+// Whale size categories
+type WhaleSize = 'tiny' | 'small' | 'average' | 'large'
+const getWhaleSize = (usdValue: number): WhaleSize => {
+  if (usdValue >= 100000) return 'large'
+  if (usdValue >= 50000) return 'average'
+  if (usdValue >= 10000) return 'small'
+  return 'tiny'
+}
+
+const getWhaleSizeLabel = (size: WhaleSize): string => {
+  switch (size) {
+    case 'large': return '🐋 Large ($100K+)'
+    case 'average': return '🐳 Average ($50K-$100K)'
+    case 'small': return '🐬 Small ($10K-$50K)'
+    case 'tiny': return '🐟 Tiny (<$10K)'
+  }
+}
+
+const getWhaleSizeColor = (size: WhaleSize): string => {
+  switch (size) {
+    case 'large': return 'text-primary-400'
+    case 'average': return 'text-warning-400'
+    case 'small': return 'text-success-400'
+    case 'tiny': return 'text-dark-400'
+  }
+}
 
 interface WhaleAlert {
   id: string
@@ -19,6 +47,7 @@ interface WhaleAlert {
   multiplier: number
   timestamp: number
   message: string
+  sizeCategory?: WhaleSize
 }
 
 export default function InsightsView() {
@@ -39,15 +68,33 @@ export default function InsightsView() {
   const [selectedInsight, setSelectedInsight] = useState<MarketInsight | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [whaleAlerts, setWhaleAlerts] = useState<WhaleAlert[]>([])
+  const [isFilterLoading, setIsFilterLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [showWhaleFilter, setShowWhaleFilter] = useState(false)
+  const [isLoadingWhales, setIsLoadingWhales] = useState(false)
+  const [whaleSizeFilter, setWhaleSizeFilter] = useState<WhaleSize | 'all'>('all')
 
-  // Fetch whale alerts
-  const fetchWhaleAlerts = useCallback(async () => {
+  // Handle refresh with immediate visual feedback
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true)
     try {
+      await fetchInsights()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [fetchInsights])
+
+  // Fetch whale alerts - can fetch more when filter is active
+  const fetchWhaleAlerts = useCallback(async (fetchAll: boolean = false) => {
+    try {
+      setIsLoadingWhales(true)
       const token = localStorage.getItem('spectra_auth_token')
       if (!token) return
 
+      // Fetch more alerts when whale filter is active (last 30 days worth)
+      const limit = fetchAll ? 100 : 5
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/insights/whales?limit=5`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/insights/whales?limit=${limit}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       if (response.ok) {
@@ -56,19 +103,21 @@ export default function InsightsView() {
       }
     } catch (err) {
       console.warn('Failed to fetch whale alerts:', err)
+    } finally {
+      setIsLoadingWhales(false)
     }
   }, [])
 
   // Fetch insights and whale alerts on mount and every 60 seconds
   useEffect(() => {
     fetchInsights()
-    fetchWhaleAlerts()
+    fetchWhaleAlerts(showWhaleFilter)
     const interval = setInterval(() => {
       fetchInsights()
-      fetchWhaleAlerts()
+      fetchWhaleAlerts(showWhaleFilter)
     }, 60000)
     return () => clearInterval(interval)
-  }, [fetchInsights, fetchWhaleAlerts])
+  }, [fetchInsights, fetchWhaleAlerts, showWhaleFilter])
 
   const getSignalColor = (signal: string) => {
     if (signal === 'bullish') return 'from-success-500 to-success-600'
@@ -118,11 +167,11 @@ export default function InsightsView() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => fetchInsights()}
-            disabled={isLoading}
+            onClick={handleRefresh}
+            disabled={isLoading || isRefreshing}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-dark-800 text-dark-300 hover:bg-dark-700 hover:text-white transition-colors disabled:opacity-50"
           >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           <button
@@ -154,7 +203,7 @@ export default function InsightsView() {
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold text-white">{insights.length}</div>
-            <div className="text-xs text-dark-400">Active Signals</div>
+            <div className="text-xs text-dark-400">Insights Generated</div>
           </div>
         </div>
       </motion.div>
@@ -171,12 +220,17 @@ export default function InsightsView() {
           {([1, 7, 30] as const).map((h) => (
             <button
               key={h}
-              onClick={() => setHorizon(h)}
+              onClick={() => {
+                setIsFilterLoading(true)
+                setHorizon(h)
+                setTimeout(() => setIsFilterLoading(false), 1200)
+              }}
+              disabled={isFilterLoading}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 horizon === h
                   ? 'bg-primary-500 text-white'
                   : 'bg-dark-800 text-dark-300 hover:bg-dark-700 hover:text-white'
-              }`}
+              } ${isFilterLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {h === 1 ? 'Tomorrow' : h === 7 ? '7 Days' : '30 Days'}
             </button>
@@ -210,55 +264,177 @@ export default function InsightsView() {
         </div>
       </motion.div>
 
-      {/* Whale Alerts */}
-      {whaleAlerts.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.18 }}
-          className="mb-6"
-        >
-          <div className="flex items-center gap-2 mb-3">
+      {/* Whale Detection Filter */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.18 }}
+        className="mb-6"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
             <Fish className="h-4 w-4 text-primary-400" />
-            <h3 className="text-sm font-medium text-dark-400">Whale Activity</h3>
+            <h3 className="text-sm font-medium text-dark-400">Whale Detection</h3>
+            {whaleAlerts.length > 0 && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-primary-500/20 text-primary-400 rounded-full">
+                {whaleAlerts.length} alerts
+              </span>
+            )}
           </div>
-          <div className="space-y-2">
-            {whaleAlerts.map((alert) => (
+          <button
+            onClick={() => {
+              setShowWhaleFilter(!showWhaleFilter)
+              fetchWhaleAlerts(!showWhaleFilter)
+            }}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              showWhaleFilter
+                ? 'bg-primary-500 text-white'
+                : 'bg-dark-800 text-dark-300 hover:bg-dark-700 hover:text-white'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            {showWhaleFilter ? 'Hide Whales' : 'Show Whale Activity'}
+          </button>
+        </div>
+
+        {/* Whale Activity Panel - Shows when filter is active */}
+        <AnimatePresence>
+          {showWhaleFilter && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              {isLoadingWhales ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader size="small" text="Loading whale activity..." />
+                </div>
+              ) : whaleAlerts.length === 0 ? (
+                <div className="p-6 rounded-xl bg-dark-800/50 border border-dark-700 text-center">
+                  <Fish className="h-12 w-12 mx-auto mb-3 text-dark-600" />
+                  <p className="text-dark-400 text-sm">No whale activity detected in the last 30 days</p>
+                  <p className="text-dark-500 text-xs mt-1">Large orders (&gt;$10K) will appear here</p>
+                </div>
+              ) : (
+                <div className="rounded-xl bg-dark-800/50 border border-dark-700 overflow-hidden">
+                  <div className="p-4 border-b border-dark-700 bg-dark-900/50">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-white">Last 30 Days Whale Activity</span>
+                      <div className="flex gap-4 text-xs">
+                        <span className="text-success-400">
+                          {whaleAlerts.filter(a => a.side === 'buy').length} Buys
+                        </span>
+                        <span className="text-danger-400">
+                          {whaleAlerts.filter(a => a.side === 'sell').length} Sells
+                        </span>
+                      </div>
+                    </div>
+                    {/* Size Filter Buttons */}
+                    <div className="flex gap-2 flex-wrap">
+                      {(['all', 'large', 'average', 'small', 'tiny'] as const).map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setWhaleSizeFilter(size)}
+                          className={`px-3 py-1 text-xs font-medium rounded-lg transition-all ${
+                            whaleSizeFilter === size
+                              ? 'bg-primary-500 text-white'
+                              : 'bg-dark-800 text-dark-400 hover:text-white hover:bg-dark-700'
+                          }`}
+                        >
+                          {size === 'all' ? 'All Sizes' : getWhaleSizeLabel(size)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {whaleAlerts
+                      .filter(alert => whaleSizeFilter === 'all' || getWhaleSize(alert.usdValue) === whaleSizeFilter)
+                      .map((alert) => (
+                      <div
+                        key={alert.id}
+                        className={`p-4 border-b border-dark-700/50 last:border-0 flex items-center justify-between ${
+                          alert.side === 'buy'
+                            ? 'bg-success-500/5'
+                            : 'bg-danger-500/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{alert.side === 'buy' ? '🐋📈' : '🐋📉'}</span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-white">{alert.symbol}</span>
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                                alert.side === 'buy' 
+                                  ? 'bg-success-500/20 text-success-400' 
+                                  : 'bg-danger-500/20 text-danger-400'
+                              }`}>
+                                {alert.side.toUpperCase()}
+                              </span>
+                              <span className={`text-xs ${getWhaleSizeColor(getWhaleSize(alert.usdValue))}`}>
+                                {getWhaleSizeLabel(getWhaleSize(alert.usdValue))}
+                              </span>
+                            </div>
+                            <div className="text-sm text-dark-400 mt-0.5">
+                              ${alert.usdValue >= 1000000 
+                                ? `${(alert.usdValue / 1000000).toFixed(2)}M` 
+                                : alert.usdValue >= 1000 
+                                  ? `${(alert.usdValue / 1000).toFixed(0)}K`
+                                  : alert.usdValue.toFixed(0)
+                              } • {alert.multiplier.toFixed(0)}x average volume
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-dark-500">
+                          {new Date(alert.timestamp).toLocaleDateString()} {new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    ))}
+                    {whaleAlerts.filter(alert => whaleSizeFilter === 'all' || getWhaleSize(alert.usdValue) === whaleSizeFilter).length === 0 && (
+                      <div className="p-6 text-center text-dark-400 text-sm">
+                        No whale alerts match the selected size filter
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Quick summary when filter is not active but there are alerts */}
+        {!showWhaleFilter && whaleAlerts.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {whaleAlerts.slice(0, 3).map((alert) => (
               <div
                 key={alert.id}
-                className={`p-3 rounded-lg border ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${
                   alert.side === 'buy'
-                    ? 'bg-success-500/10 border-success-500/30'
-                    : 'bg-danger-500/10 border-danger-500/30'
+                    ? 'bg-success-500/10 border border-success-500/30'
+                    : 'bg-danger-500/10 border border-danger-500/30'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{alert.side === 'buy' ? '🐋📈' : '🐋📉'}</span>
-                    <span className="font-medium text-white">{alert.symbol}</span>
-                    <span className={`text-sm font-medium ${
-                      alert.side === 'buy' ? 'text-success-400' : 'text-danger-400'
-                    }`}>
-                      {alert.side.toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="text-xs text-dark-400">
-                    {alert.multiplier}x avg size
-                  </span>
-                </div>
-                <div className="mt-1 text-sm text-dark-300">
-                  ${alert.usdValue >= 1000000 
-                    ? `${(alert.usdValue / 1000000).toFixed(2)}M` 
-                    : alert.usdValue >= 1000 
-                      ? `${(alert.usdValue / 1000).toFixed(2)}K`
-                      : alert.usdValue.toFixed(2)
-                  } order detected
-                </div>
+                <span>{alert.side === 'buy' ? '🐋📈' : '🐋📉'}</span>
+                <span className="font-medium text-white">{alert.symbol}</span>
+                <span className={`text-xs ${alert.side === 'buy' ? 'text-success-400' : 'text-danger-400'}`}>
+                  ${alert.usdValue >= 1000000 ? `${(alert.usdValue / 1000000).toFixed(1)}M` : `${(alert.usdValue / 1000).toFixed(0)}K`}
+                </span>
               </div>
             ))}
+            {whaleAlerts.length > 3 && (
+              <button
+                onClick={() => {
+                  setShowWhaleFilter(true)
+                  fetchWhaleAlerts(true)
+                }}
+                className="px-3 py-1.5 rounded-lg text-sm bg-dark-800 text-dark-300 hover:text-white transition-colors"
+              >
+                +{whaleAlerts.length - 3} more
+              </button>
+            )}
           </div>
-        </motion.div>
-      )}
+        )}
+      </motion.div>
 
       {/* Error State */}
       {error && (
@@ -274,16 +450,27 @@ export default function InsightsView() {
       {/* Loading State */}
       {isLoading && insights.length === 0 && (
         <div className="flex items-center justify-center py-12">
-          <div className="flex items-center gap-3 text-dark-400">
-            <RefreshCw className="h-5 w-5 animate-spin" />
-            <span>Generating insights...</span>
-          </div>
+          <Loader text="Generating insights..." />
         </div>
       )}
 
       {/* Insights Grid */}
       {insights.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="relative">
+          {/* Loader Overlay */}
+          <AnimatePresence>
+            {(isFilterLoading || isLoading || isRefreshing) && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-10 flex items-center justify-center bg-dark-950/70 backdrop-blur-sm rounded-2xl"
+              >
+                <Loader text={isFilterLoading ? "Updating predictions..." : "Refreshing insights..."} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {insights.map((insight, index) => {
             const SignalIcon = getSignalIcon(insight.signal)
 
@@ -327,7 +514,14 @@ export default function InsightsView() {
                   </div>
 
                   {/* Summary */}
-                  <p className="text-dark-300 mb-4 leading-relaxed line-clamp-2">{insight.summary}</p>
+                  <p className="text-dark-300 mb-4 leading-relaxed line-clamp-2">
+                    {insight.summary.split(/(BUY:|SELL:|HOLD:)/).map((part, idx) => {
+                      if (part === 'BUY:') return <span key={idx} className="font-bold text-success-400">BUY:</span>
+                      if (part === 'SELL:') return <span key={idx} className="font-bold text-danger-400">SELL:</span>
+                      if (part === 'HOLD:') return <span key={idx} className="font-bold text-warning-400">HOLD:</span>
+                      return <span key={idx}>{part}</span>
+                    })}
+                  </p>
 
                   {/* Confidence Bar */}
                   <div className="mb-4">
@@ -380,6 +574,7 @@ export default function InsightsView() {
               </motion.div>
             )
           })}
+          </div>
         </div>
       )}
 
@@ -520,26 +715,31 @@ export default function InsightsView() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-dark-900 rounded-2xl border border-dark-800 p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto"
+              className="bg-dark-900 rounded-2xl border border-dark-800 w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-500/10 text-primary-400 font-bold text-lg">
-                    {selectedInsight.symbol[0]}
+              {/* Header */}
+              <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-dark-800 p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500/20 to-primary-600/10 text-primary-400 font-bold text-xl">
+                      {selectedInsight.symbol[0]}
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">{selectedInsight.symbol}</h3>
+                      <p className="text-sm text-dark-400">Detailed Analysis</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">{selectedInsight.symbol}</h3>
-                    <p className="text-sm text-dark-400">Detailed Analysis</p>
-                  </div>
+                  <button
+                    onClick={() => setSelectedInsight(null)}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-dark-800 text-dark-400 hover:bg-dark-700 hover:text-white transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setSelectedInsight(null)}
-                  className="text-dark-400 hover:text-white transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
               </div>
+
+              <div className="p-6 space-y-6">
 
               {/* Signal Badge */}
               <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border mb-4 ${getSignalBadgeColor(selectedInsight.signal)}`}>
@@ -554,7 +754,14 @@ export default function InsightsView() {
               {/* Summary */}
               <div className="mb-6">
                 <h4 className="text-sm font-medium text-dark-400 mb-2">Analysis Summary</h4>
-                <p className="text-white leading-relaxed">{selectedInsight.summary}</p>
+                <p className="text-white leading-relaxed">
+                  {selectedInsight.summary.split(/(BUY:|SELL:|HOLD:)/).map((part, idx) => {
+                    if (part === 'BUY:') return <span key={idx} className="font-bold text-success-400 text-lg">BUY:</span>
+                    if (part === 'SELL:') return <span key={idx} className="font-bold text-danger-400 text-lg">SELL:</span>
+                    if (part === 'HOLD:') return <span key={idx} className="font-bold text-warning-400 text-lg">HOLD:</span>
+                    return <span key={idx}>{part}</span>
+                  })}
+                </p>
               </div>
 
               {/* ML Prediction */}
@@ -719,8 +926,9 @@ export default function InsightsView() {
               </div>
 
               {/* Timestamp */}
-              <div className="text-xs text-dark-500 text-center">
+              <div className="text-xs text-dark-500 text-center pb-6">
                 Generated {formatTimeAgo(selectedInsight.timestamp)}
+              </div>
               </div>
             </motion.div>
           </motion.div>
