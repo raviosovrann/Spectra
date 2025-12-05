@@ -4,8 +4,8 @@ import { Brain, TrendingUp, Shield, Zap, Bell, BarChart3 } from 'lucide-react'
 const features = [
   {
     icon: Brain,
-    title: 'AI-Powered Insights',
-    description: 'Get intelligent market analysis and trading recommendations powered by advanced AI algorithms.',
+    title: 'Technical Analysis',
+    description: 'Get intelligent market analysis and trading recommendations powered by proven technical indicators.',
     color: 'from-primary-500 to-primary-600',
   },
   {
@@ -29,7 +29,7 @@ const features = [
   {
     icon: Bell,
     title: 'Smart Alerts',
-    description: 'Never miss an opportunity with customizable price alerts and AI-driven notifications.',
+    description: 'Never miss an opportunity with customizable price alerts and technical indicator notifications.',
     color: 'from-danger-500 to-danger-600',
   },
   {

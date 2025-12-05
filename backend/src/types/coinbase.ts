@@ -130,3 +130,47 @@ export interface CoinbaseError {
   message: string
   error_details?: string
 }
+
+export interface PaymentMethod {
+  id: string
+  type: string
+  name?: string
+  currency?: string
+  primary_buy?: boolean
+  primary_sell?: boolean
+  allow_buy?: boolean
+  allow_sell?: boolean
+  allow_deposit?: boolean
+  allow_withdraw?: boolean
+  created_at?: string
+  updated_at?: string
+  resource?: string
+  resource_path?: string
+}
+
+export interface FiatTransferRequest {
+  amount: string
+  currency: string
+  payment_method: string
+  commit?: boolean
+}
+
+export interface MoneyValue {
+  value: string
+  currency: string
+}
+
+export interface FiatTransferResponse {
+  transfer: {
+    id: string
+    status?: string
+    committed: boolean
+    type?: string
+    payout_at?: string | null
+    user_reference?: string | null
+    amount: MoneyValue
+    subtotal?: MoneyValue
+    total?: MoneyValue
+    total_fee?: MoneyValue
+  }
+}

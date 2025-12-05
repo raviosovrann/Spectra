@@ -11,6 +11,7 @@ interface AuthenticatedWebSocket extends WebSocket {
 interface ClientInfo {
   userId: string
   connectedAt: number
+  subscriptions: Set<string> // Product IDs this client is subscribed to
 }
 
 export interface BroadcastMessage {
@@ -78,6 +79,7 @@ export class FrontendWebSocketServer {
     this.clients.set(ws, {
       userId,
       connectedAt: Date.now(),
+      subscriptions: new Set(),
     })
 
     // Notify callbacks
@@ -215,7 +217,10 @@ export class FrontendWebSocketServer {
           this.sendToClient(ws, { type: 'pong', timestamp: Date.now() })
           break
         case 'subscribe':
-          // Handle subscription requests (future enhancement)
+          this.handleSubscribe(ws, message.productId)
+          break
+        case 'unsubscribe':
+          this.handleUnsubscribe(ws, message.productId)
           break
         default:
           logger.warn('Unknown message type', { type: message.type })
@@ -223,6 +228,50 @@ export class FrontendWebSocketServer {
     } catch (error) {
       logger.error('Error handling client message', { error })
     }
+  }
+
+  /**
+   * Handle subscribe request from client
+   */
+  private handleSubscribe(ws: WebSocket, productId: string): void {
+    const clientInfo = this.clients.get(ws)
+    if (!clientInfo || !productId) return
+
+    clientInfo.subscriptions.add(productId)
+    
+    logger.debug('Client subscribed to product', {
+      userId: clientInfo.userId,
+      productId,
+      subscriptionCount: clientInfo.subscriptions.size,
+    })
+
+    this.sendToClient(ws, {
+      type: 'subscribed',
+      productId,
+      timestamp: Date.now(),
+    })
+  }
+
+  /**
+   * Handle unsubscribe request from client
+   */
+  private handleUnsubscribe(ws: WebSocket, productId: string): void {
+    const clientInfo = this.clients.get(ws)
+    if (!clientInfo || !productId) return
+
+    clientInfo.subscriptions.delete(productId)
+    
+    logger.debug('Client unsubscribed from product', {
+      userId: clientInfo.userId,
+      productId,
+      subscriptionCount: clientInfo.subscriptions.size,
+    })
+
+    this.sendToClient(ws, {
+      type: 'unsubscribed',
+      productId,
+      timestamp: Date.now(),
+    })
   }
 
   /**
@@ -265,6 +314,57 @@ export class FrontendWebSocketServer {
       messageType: message.type,
       clientCount: sentCount,
     })
+  }
+
+  /**
+   * Broadcast ticker to subscribed clients only
+   * Throttled to 1 message per second per product
+   */
+  private lastTickerBroadcast: Map<string, number> = new Map()
+  private readonly tickerThrottleMs = 1000 // 1 second
+
+  broadcastTicker(productId: string, ticker: BroadcastMessage): void {
+    // Throttle broadcasts to 1 per second per product
+    const now = Date.now()
+    const lastBroadcast = this.lastTickerBroadcast.get(productId) || 0
+    
+    if (now - lastBroadcast < this.tickerThrottleMs) {
+      return // Skip this broadcast, too soon
+    }
+    
+    this.lastTickerBroadcast.set(productId, now)
+
+    const message = {
+      type: 'ticker',
+      productId,
+      data: ticker,
+      timestamp: now,
+    }
+    const messageStr = JSON.stringify(message)
+    let sentCount = 0
+
+    this.clients.forEach((clientInfo, ws) => {
+      // Only send to clients subscribed to this product
+      if (clientInfo.subscriptions.has(productId) && ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(messageStr)
+          sentCount++
+        } catch (error) {
+          logger.error('Error broadcasting ticker to client', {
+            userId: clientInfo.userId,
+            productId,
+            error,
+          })
+        }
+      }
+    })
+
+    if (sentCount > 0) {
+      logger.debug('Ticker broadcast sent', {
+        productId,
+        clientCount: sentCount,
+      })
+    }
   }
 
   /**

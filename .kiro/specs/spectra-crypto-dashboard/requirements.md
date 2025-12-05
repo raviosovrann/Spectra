@@ -2,18 +2,18 @@
 
 ## Introduction
 
-Spectra is an AI-powered cryptocurrency trading dashboard that combines real-time market visualization with intelligent trading insights. The system provides traders with a comprehensive view of the cryptocurrency market through an interactive heatmap, enables direct trading through Coinbase integration, and delivers actionable AI-generated insights based on technical indicators. The platform is designed for both novice and experienced traders, offering paper trading capabilities alongside real trading functionality.
+Spectra is a cryptocurrency trading dashboard that combines real-time market visualization with technical trading insights. The system provides traders with a comprehensive view of the cryptocurrency market through an interactive heatmap, enables direct trading through Coinbase integration, and delivers actionable insights based on technical indicators. The platform is designed for both novice and experienced traders, offering paper trading capabilities alongside real trading functionality.
 
 ## Glossary
 
-- **Spectra System**: The complete cryptocurrency trading dashboard application including frontend, backend, and AI analysis components
+- **Spectra System**: The complete cryptocurrency trading dashboard application including frontend, backend, and technical analysis components
 - **Heatmap Component**: The visual grid/treemap display showing cryptocurrency price changes with color-coded cells
 - **Trading Interface**: The user interface components for placing buy/sell orders and managing portfolio
-- **AI Engine**: The backend service that calculates technical indicators and generates market insights
+- **Technical Analysis Engine**: The backend service that calculates technical indicators and generates market insights
 - **WebSocket Manager**: The service that maintains persistent connections to Coinbase WebSocket feeds
 - **Portfolio Manager**: The component that tracks user holdings and calculates valuations
 - **Alert Service**: The system that monitors market conditions and triggers user notifications
-- **Insight Card**: A UI component displaying a single AI-generated market insight
+- **Insight Card**: A UI component displaying a single market insight based on technical analysis
 - **Order Book**: The real-time list of buy and sell orders for a cryptocurrency
 - **RSI**: Relative Strength Index, a momentum indicator ranging from 0-100
 - **SMA**: Simple Moving Average, the average price over a specified period
@@ -22,10 +22,6 @@ Spectra is an AI-powered cryptocurrency trading dashboard that combines real-tim
 - **Market Order**: An order to buy/sell immediately at current market price
 - **Limit Order**: An order to buy/sell at a specific target price
 - **Whale Activity**: Unusually large trading orders that may indicate institutional trading
-- **TimesFM**: Time Series Foundation Model by Google Research, a pre-trained model for zero-shot time series forecasting
-- **ML Service**: Python Flask service running TimesFM locally for price predictions
-- **Price Forecast**: ML-generated prediction of future price direction and magnitude with confidence scores
-- **Hybrid Insight**: Market insight combining ML predictions with technical indicator analysis
 
 ## Requirements
 
@@ -62,7 +58,7 @@ Spectra is an AI-powered cryptocurrency trading dashboard that combines real-tim
 1. THE Portfolio Manager SHALL display total portfolio value in USD with 24-hour profit and loss calculation
 2. THE Portfolio Manager SHALL show individual holdings with the following details: quantity held, average buy price, current market value, unrealized profit/loss amount, and profit/loss percentage
 3. THE Portfolio Manager SHALL generate a pie chart visualization showing portfolio allocation by asset
-4. THE Portfolio Manager SHALL display a historical portfolio value chart with selectable time ranges of 7 days and 30 days
+4. THE Portfolio Manager SHALL display a 30-day historical portfolio value chart derived from authenticated trade flows
 5. WHILE market prices update, THE Portfolio Manager SHALL recalculate portfolio valuations within 500 milliseconds
 
 ### Requirement 4: Order Placement and Execution
@@ -95,40 +91,24 @@ Spectra is an AI-powered cryptocurrency trading dashboard that combines real-tim
 
 #### Acceptance Criteria
 
-1. THE AI Engine SHALL calculate the 14-period Relative Strength Index (RSI) for each cryptocurrency using the standard RSI formula
-2. THE AI Engine SHALL calculate volatility as the standard deviation of 24-hour price changes expressed as a percentage
-3. THE AI Engine SHALL compare current 24-hour trading volume to the 7-day average volume and identify spikes exceeding 150 percent
-4. THE AI Engine SHALL calculate 7-day and 30-day Simple Moving Averages (SMA) and detect crossover events
-5. WHERE level2 order book data is available, THE AI Engine SHALL detect whale activity when individual orders exceed 10 times the average order size
+1. THE Technical Analysis Engine SHALL calculate the 14-period Relative Strength Index (RSI) for each cryptocurrency using the standard RSI formula
+2. THE Technical Analysis Engine SHALL calculate volatility as the standard deviation of 24-hour price changes expressed as a percentage
+3. THE Technical Analysis Engine SHALL compare current 24-hour trading volume to the 7-day average volume and identify spikes exceeding 150 percent
+4. THE Technical Analysis Engine SHALL calculate 7-day and 30-day Simple Moving Averages (SMA) and detect crossover events
+5. WHERE level2 order book data is available, THE Technical Analysis Engine SHALL detect whale activity when individual orders exceed 10 times the average order size
 
-### Requirement 7: AI-Generated Market Insights
+### Requirement 7: Market Insights
 
-**User Story:** As a trader, I want to receive AI-generated insights about market conditions, so that I can quickly understand trading opportunities without manual analysis.
+**User Story:** As a trader, I want to receive insights about market conditions based on technical analysis, so that I can quickly understand trading opportunities without manual analysis.
 
 #### Acceptance Criteria
 
-1. THE AI Engine SHALL generate 3 to 5 prioritized market insights based on current technical indicators
-2. THE AI Engine SHALL present each insight as a natural language summary including the cryptocurrency symbol, signal type (bullish/bearish/neutral), and supporting data
+1. THE Technical Analysis Engine SHALL generate 3 to 5 prioritized market insights based on current technical indicators
+2. THE Technical Analysis Engine SHALL present each insight as a natural language summary including the cryptocurrency symbol, signal type (bullish/bearish/neutral), and supporting data
 3. THE Insight Card SHALL display a confidence score indicating the strength of the signal
 4. THE Insight Card SHALL use color coding with green for bullish signals, red for bearish signals, and yellow for neutral signals
 5. WHEN a user clicks an Insight Card, THE Spectra System SHALL display detailed analysis including relevant charts and indicator values
-
-### Requirement 16: Machine Learning Price Forecasting
-
-**User Story:** As a trader, I want ML-powered price predictions based on historical patterns, so that I can make data-driven trading decisions with quantified confidence levels.
-
-#### Acceptance Criteria
-
-1. THE ML Service SHALL use Google TimesFM 2.5 (google/timesfm-2.5-200m-pytorch) running locally via a Python Flask service
-2. THE ML Model SHALL generate price direction predictions (up/down/neutral) with confidence scores between 0 and 100 percent
-3. THE ML Model SHALL provide forecasts for 1-day, 7-day, and 30-day time horizons
-4. THE ML Service SHALL require a minimum of 30 historical price data points for predictions
-5. THE AI Engine SHALL combine ML predictions with technical analysis (RSI, SMA, volatility, volume) to generate hybrid insights
-6. THE Node.js backend SHALL call the Python ML service via HTTP for predictions
-7. THE ML Service SHALL cache predictions for 60 seconds to reduce inference overhead
-8. WHEN ML service is unavailable, THE AI Engine SHALL fall back to technical analysis only
-9. THE Insights UI SHALL allow users to add and remove tracked cryptocurrencies
-10. THE Insights UI SHALL display ML prediction details (direction, confidence, predicted change) in a detail modal
+6. THE Insights UI SHALL allow users to add and remove tracked cryptocurrencies
 
 ### Requirement 8: Smart Alert System
 
@@ -174,7 +154,7 @@ Spectra is an AI-powered cryptocurrency trading dashboard that combines real-tim
 #### Acceptance Criteria
 
 1. THE Spectra System SHALL maintain a frame rate of at least 30 frames per second during simultaneous updates of 30 cryptocurrency prices
-2. THE AI Engine SHALL cache calculated insights for 60 seconds to reduce computational overhead
+2. THE Technical Analysis Engine SHALL cache calculated insights for 60 seconds to reduce computational overhead
 3. THE Trading Interface SHALL implement virtual scrolling for trade history lists exceeding 100 items
 4. THE Spectra System SHALL use memoization for expensive calculations to prevent redundant processing
 5. THE WebSocket Manager SHALL batch incoming messages and process them in requestAnimationFrame callbacks
@@ -203,7 +183,7 @@ Spectra is an AI-powered cryptocurrency trading dashboard that combines real-tim
 2. IF an order submission fails, THEN THE Trading Interface SHALL preserve the order details and allow the user to retry submission
 3. WHEN the WebSocket connection is lost, THE Spectra System SHALL display a connection status indicator and automatically attempt reconnection
 4. THE Spectra System SHALL log all errors with timestamps and context information for debugging purposes
-5. IF the AI Engine encounters insufficient data for calculations, THEN THE AI Engine SHALL return neutral indicators rather than failing
+5. IF the Technical Analysis Engine encounters insufficient data for calculations, THEN THE Technical Analysis Engine SHALL return neutral indicators rather than failing
 
 ### Requirement 14: Data Persistence
 
@@ -228,3 +208,25 @@ Spectra is an AI-powered cryptocurrency trading dashboard that combines real-tim
 3. THE Spectra System SHALL submit market orders using the Coinbase orders endpoint with proper order parameters
 4. THE Spectra System SHALL submit limit orders with specified price targets and time-in-force parameters
 5. THE Spectra System SHALL query order status and update the Trading Interface with execution details
+
+### Requirement 16: Historical Market Data Consistency
+
+**User Story:** As a trader, I want every historical chart inside Spectra to show the same 1-year window sourced from a reliable provider, so that I can compare instruments without wondering if the data is stale or missing.
+
+#### Acceptance Criteria
+
+1. THE Spectra System SHALL fetch OHLC data for `/api/market/history` exclusively from the CoinGecko Markets API using the `ohlc` endpoint.
+2. THE Market History endpoint SHALL always return exactly 365 daily candles per request, with timestamps normalized to 00:00:00 UTC.
+3. THE CandleAggregator utility SHALL interpolate or trim CoinGecko responses as needed to maintain contiguous daily data with no gaps.
+4. THE TradingView page SHALL label the chart as "1 Year · Daily" and SHALL omit any timeframe selector to reinforce the fixed range.
+
+### Requirement 17: Credential-Gated Portfolio Surfaces
+
+**User Story:** As a security-conscious trader, I want sensitive portfolio, alert, and trade data to remain hidden until I explicitly connect my Coinbase credentials, so that Spectra never exposes empty or misleading states for anonymous sessions.
+
+#### Acceptance Criteria
+
+1. THE Portfolio, Alerts, and History views SHALL render a credential gate (title + instructions + CTA) whenever a user account lacks stored Coinbase Advanced Trade API keys.
+2. WHEN a gate is displayed, THE frontend SHALL suppress downstream API calls and instead show actionable messaging with a link to Settings → API Credentials.
+3. WHEN valid credentials exist, THE frontend SHALL fetch `/api/portfolio`, `/api/alerts`, and `/api/trades` with `credentials: 'include'` and display authenticated content with loaders and retry flows.
+4. THE backend SHALL validate JWTs on these routes and log an error if a session lacks a user_id, returning HTTP 401 with a descriptive message.

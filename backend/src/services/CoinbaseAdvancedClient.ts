@@ -7,6 +7,9 @@ import type {
   OrderResponse,
   Order,
   CoinbaseError,
+  PaymentMethod,
+  FiatTransferRequest,
+  FiatTransferResponse,
 } from '../types/coinbase.js'
 
 interface RequestOptions {
@@ -235,6 +238,60 @@ export class CoinbaseAdvancedClient {
   }
 
   /**
+   * Retrieve available payment methods for the authenticated user
+   * API Endpoint: GET /v2/payment-methods
+   */
+  async getPaymentMethods(): Promise<PaymentMethod[]> {
+    interface PaymentMethodResponse {
+      payment_methods?: PaymentMethod[]
+      data?: PaymentMethod[]
+    }
+
+    const response = await this.makeRequest<PaymentMethodResponse>({
+      method: 'GET',
+      path: '/api/v3/brokerage/payment_methods',
+    })
+
+    return response.payment_methods ?? response.data ?? []
+  }
+
+  /**
+   * Initiate a fiat deposit into a Coinbase account.
+   */
+  async createFiatDeposit(accountId: string, payload: FiatTransferRequest): Promise<FiatTransferResponse> {
+    return this.makeRequest<FiatTransferResponse>({
+      method: 'POST',
+      path: `/api/v3/brokerage/accounts/${accountId}/deposits`,
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async commitFiatDeposit(accountId: string, depositId: string): Promise<FiatTransferResponse> {
+    return this.makeRequest<FiatTransferResponse>({
+      method: 'POST',
+      path: `/api/v3/brokerage/accounts/${accountId}/deposits/${depositId}/commit`,
+    })
+  }
+
+  /**
+   * Initiate a fiat withdrawal from a Coinbase account.
+   */
+  async createFiatWithdrawal(accountId: string, payload: FiatTransferRequest): Promise<FiatTransferResponse> {
+    return this.makeRequest<FiatTransferResponse>({
+      method: 'POST',
+      path: `/api/v3/brokerage/accounts/${accountId}/withdrawals`,
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async commitFiatWithdrawal(accountId: string, withdrawalId: string): Promise<FiatTransferResponse> {
+    return this.makeRequest<FiatTransferResponse>({
+      method: 'POST',
+      path: `/api/v3/brokerage/accounts/${accountId}/withdrawals/${withdrawalId}/commit`,
+    })
+  }
+
+  /**
    * Place a new order.
    * 
    * This endpoint allows placing market or limit orders for a specific product.
@@ -322,5 +379,35 @@ export class CoinbaseAdvancedClient {
     if (!response.success) {
       throw new Error(`Failed to cancel order: ${response.failure_reason}`)
     }
+  }
+
+  /**
+   * Get historical candles for a product.
+   * 
+   * API Endpoint: GET /api/v3/brokerage/products/{product_id}/candles
+   */
+  async getCandles(
+    productId: string,
+    start: number,
+    end: number,
+    granularity: string
+  ): Promise<Array<{ start: string; low: string; high: string; open: string; close: string; volume: string }>> {
+    interface CandlesResponse {
+      candles: {
+        start: string
+        low: string
+        high: string
+        open: string
+        close: string
+        volume: string
+      }[]
+    }
+
+    const response = await this.makeRequest<CandlesResponse>({
+      method: 'GET',
+      path: `/api/v3/brokerage/products/${productId}/candles?start=${Math.floor(start/1000)}&end=${Math.floor(end/1000)}&granularity=${granularity}`,
+    })
+
+    return response.candles
   }
 }

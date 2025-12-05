@@ -1,8 +1,28 @@
 # Design Document
+}
 
-## Overview
+## Authenticated Data APIs
 
-Spectra is architected as a modern full-stack application with a React TypeScript frontend, Node.js backend, and real-time WebSocket communication. The system follows a layered architecture pattern with clear separation between presentation, business logic, and data access layers. The frontend uses Zustand for state management and implements a component-based architecture for modularity. The backend serves as an API gateway and WebSocket proxy, handling authentication, rate limiting, and AI calculations. Real-time market data flows from Coinbase WebSocket feeds through the backend to the frontend, while REST API calls handle trading operations and historical data retrieval.
+### Portfolio API
+
+- `GET /api/portfolio` returns the freshest row from `spectra_user_portfolio_t` plus its holdings, coercing numeric strings via `toNumber` before responding.
+- `GET /api/portfolio/history` walks a 30-day window of aggregated trade net flows to reconstruct portfolio value for charting without requiring dedicated snapshot rows.
+- Both endpoints require JWT auth; when no records exist, they return empty arrays with `totalValue = 0` to keep the UI stable.
+
+### Alerts API
+
+- `GET /api/alerts` lists alerts ordered by creation date with normalized IDs and parsed JSON conditions.
+- `POST /api/alerts` validates symbol, alert type, and numeric target before inserting; it returns the new row for optimistic UI updates.
+- `PATCH /api/alerts/:alertId` toggles statuses (active/triggered/snoozed) or mutates conditions, while `DELETE /api/alerts/:alertId` removes the record entirely.
+
+### Trades API
+
+- `GET /api/trades` fetches up to 500 rows from `spectra_user_trades_t`, merges Coinbase + Spectra fees, and supports optional symbol/type/date filters via query params.
+- Timestamps are converted to epoch milliseconds so the frontend can render both date and time columns easily.
+- Backend logging captures per-user failures so CSV exports (still client-side) can show actionable errors.
+
+## Error Handling
+Spectra is architected as a modern full-stack application with a React TypeScript frontend, Node.js backend, and real-time WebSocket communication. The system follows a layered architecture pattern with clear separation between presentation, business logic, and data access layers. The frontend uses Zustand for state management and implements a component-based architecture for modularity. The backend serves as an API gateway and WebSocket proxy, handling authentication, rate limiting, and technical analysis calculations. Real-time market data flows from Coinbase WebSocket feeds through the backend to the frontend, while REST API calls handle trading operations and fetch 365-day historical candles from CoinGecko.
 
 ## Architecture
 
@@ -21,7 +41,7 @@ graph TB
     subgraph "Backend - Node.js + Express"
         API[REST API Routes]
         WSServer[WebSocket Server]
-        AIEngine[AI Analysis Engine]
+        TechEngine[Technical Analysis Engine]
         AuthMiddleware[Authentication Middleware]
         AuthService[Auth Service]
         UserService[User Service]
@@ -33,8 +53,9 @@ graph TB
     end
 
     subgraph "External Services"
-        CoinbaseREST[Coinbase REST API]
-        CoinbaseWS[Coinbase WebSocket Feed]
+      CoinbaseREST[Coinbase REST API]
+      CoinbaseWS[Coinbase WebSocket Feed]
+      CoinGeckoAPI[CoinGecko Market Data API]
     end
 
     UI --> Hooks
@@ -50,9 +71,10 @@ graph TB
     UserService --> PostgreSQL
     AuthService --> API
     AuthMiddleware --> CoinbaseREST
+    API --> CoinGeckoAPI
     WSServer --> CoinbaseWS
-    AIEngine --> Store
-    API --> AIEngine
+    TechEngine --> Store
+    API --> TechEngine
     
     Store --> LocalStorage
     AuthContext --> LocalStorage
@@ -90,6 +112,78 @@ graph TB
 4. Frontend updates Zustand market store
 5. React components re-render with new prices (memoized to prevent unnecessary renders)
 
+### Technical Analysis Architecture
+
+The Spectra Technical Analysis Engine uses traditional technical indicators to generate actionable trading insights.
+
+```mermaid
+flowchart TB
+    subgraph "Data Sources"
+        WS[Coinbase WebSocket<br/>Ticker Channel]
+        API[CoinGecko OHLC API<br/>365-Day Candles]
+    end
+
+    subgraph "Backend - Node.js"
+        MDR[MarketDataRelay<br/>Real-time price updates]
+        PH[Price History Cache<br/>Rolling 100+ data points per symbol]
+        
+        subgraph "Technical Analysis Engine"
+            TA[Technical Indicators]
+            WD[Whale Detector]
+            CS[Composite Signal Calculator]
+            SG[Summary Generator]
+        end
+    end
+
+    subgraph "Technical Indicators (8-10 metrics)"
+        RSI[RSI<br/>Overbought/Oversold]
+        SMA[SMA Crossover<br/>Golden/Death Cross]
+        MACD[MACD<br/>Trend Momentum]
+        BB[Bollinger Bands<br/>Volatility Range]
+        STOCH[Stochastic<br/>Momentum Oscillator]
+        VOL[Volume Analysis<br/>Spike Detection]
+        MOM[Momentum<br/>Rate of Change]
+        EMA[EMA 12/26<br/>Trend Following]
+    end
+
+    subgraph "Output"
+        INS[Market Insight<br/>BUY / SELL / HOLD]
+        CONF[Confidence Score<br/>40-95%]
+        SUM[Natural Language Summary]
+    end
+
+    WS --> MDR
+    API --> PH
+    MDR --> PH
+    PH --> TA
+
+    TA --> RSI & SMA & MACD & BB & STOCH & VOL & MOM & EMA
+    RSI & SMA & MACD & BB & STOCH & VOL & MOM & EMA --> CS
+    
+    MDR --> WD
+    WD --> CS
+    
+    CS --> INS & CONF
+    CS --> SG
+    SG --> SUM
+
+    style INS fill:#34a853,color:#fff
+    style CONF fill:#fbbc04,color:#000
+```
+
+**Technical Analysis Flow:**
+
+1. **Data Collection**: Real-time prices from Coinbase WebSocket accumulated in rolling cache (100+ data points per symbol)
+2. **Indicator Calculation**: Calculate RSI, SMA, MACD, Bollinger Bands, Stochastic, Volume, Momentum, and EMA
+3. **Signal Combination**:
+   - Technical indicators weighted at 60-70% (RSI, SMA crossover, MACD)
+   - Whale activity weighted at 15-20% if detected
+   - 24h momentum weighted at 10-15%
+4. **Insight Generation**: Natural language summary with BUY/SELL/HOLD recommendation
+
+**Supported Cryptocurrencies (20 coins):**
+BTC, ETH, SOL, ADA, DOGE, XRP, DOT, AVAX, POL, LINK, UNI, ATOM, LTC, BCH, ALGO, XLM, AAVE, NEAR, APT, ARB
+
 **Trading Operation Flow:**
 
 1. User submits order via Trading Interface
@@ -100,14 +194,13 @@ graph TB
 6. Backend returns order status to frontend
 7. Frontend updates Portfolio Store and displays confirmation
 
-**AI Insights Flow:**
+**Technical Insights Flow:**
 
-1. Backend AI Engine subscribes to market data updates
-2. On price updates, AI Engine calculates technical indicators (RSI, SMA, volatility)
-3. AI Engine generates insights and caches for 60 seconds
+1. Backend Technical Analysis Engine subscribes to market data updates
+2. On price updates, Technical Analysis Engine calculates technical indicators (RSI, SMA, volatility)
+3. Technical Analysis Engine generates insights and caches for 60 seconds
 4. Frontend polls insights endpoint every 30 seconds
-5. Kiro Agent Hook triggers recalculation on significant market moves (>5% in 15 min)
-6. Frontend displays updated insights in dashboard
+5. Frontend displays updated insights in dashboard
 
 ## Components and Interfaces
 
@@ -151,24 +244,24 @@ App
 │   ├── OrderForm (buy/sell form with validation)
 │   ├── OrderBook (live bids/asks, optional)
 │   ├── OrderConfirmation (confirmation modal)
-│   └── PriceChart (line chart with time range selector)
-├── PortfolioView
+│   └── CandlestickChart (fixed 1-year daily series from CoinGecko)
+├── PortfolioView (wrapped in CredentialsGate)
 │   ├── PortfolioSummary (total value, 24h P&L, available cash)
 │   ├── HoldingsList (individual holdings table with sorting)
 │   ├── AllocationChart (pie chart)
-│   └── PortfolioChart (historical value line chart, 7d/30d)
+│   └── PortfolioChart (historical value line chart, 30d trade-flow reconstruction)
 ├── InsightsView
 │   ├── InsightsDashboard
 │   │   └── InsightCard[] (3-5 prioritized insights with confidence scores)
 │   ├── MetricsDisplay (RSI, volatility, volume indicators)
 │   └── InsightDetailModal (detailed analysis on click)
-├── AlertsView
+├── AlertsView (wrapped in CredentialsGate)
 │   ├── CreateAlert (alert creation form)
 │   ├── AlertsList (active/triggered alerts with filters)
 │   └── AlertNotification (toast notifications)
-├── HistoryView (replaces TradeHistoryView)
-│   ├── TradeHistoryTable (paginated/virtual scrolling table)
-│   ├── TradeFilters (symbol, date range, type, status)
+├── HistoryView (wrapped in CredentialsGate)
+│   ├── TradeHistoryTable (responsive table with animated rows)
+│   ├── TradeFilters (buy/sell toggle buttons; symbol/date filters planned)
 │   ├── TradeSearch (search by ID or symbol)
 │   └── ExportButton (CSV export)
 ├── Settings
@@ -183,8 +276,13 @@ App
     ├── SkeletonLoader (skeleton screens)
     ├── Toast (notifications)
     ├── EmptyState (no data states)
-    └── PaperTradingIndicator (badge when paper trading is active)
+    ├── PaperTradingIndicator (badge when paper trading is active)
+    └── CredentialsGate (enforces stored Coinbase API keys before revealing sensitive data)
 ```
+### Credential Gating Strategy
+
+`CredentialsGate` receives `hasCredentials`, `title`, and `description` props and decides whether to render child content or a gated call-to-action. Portfolio, Alerts, and History routes wrap their entire view tree with this component so that no network calls are attempted until the user stores Coinbase Advanced Trade keys. The gate displays contextual messaging plus a button that deep-links to the Settings → API Credentials section, and it surfaces skeleton loaders while authentication status is still unknown. Once the user saves keys, the gate re-renders the requested page, which then fetches `/api/portfolio`, `/api/alerts`, or `/api/trades` with `credentials: 'include'`.
+
 
 ### Key Component Interfaces
 
@@ -293,18 +391,15 @@ interface TickerMessage {
 }
 ```
 
-**AI Engine:**
+**Technical Analysis Engine:**
 
 ```typescript
-interface AIEngine {
+interface TechnicalAnalysisEngine {
   calculateRSI(prices: number[], period?: number): number
   calculateVolatility(prices: number[]): number
   detectSMACrossover(prices: number[]): 'bullish' | 'bearish' | 'neutral'
   analyzeVolume(current: number, average: number): VolumeAnalysis
   generateInsights(marketData: MarketData[]): MarketInsight[]
-  // ML-powered methods
-  predictPrice(symbol: string, horizon: '1h' | '4h' | '24h'): Promise<PricePrediction>
-  getHybridInsights(marketData: MarketData[]): Promise<HybridInsight[]>
 }
 
 interface VolumeAnalysis {
@@ -313,374 +408,12 @@ interface VolumeAnalysis {
   trend: 'increasing' | 'decreasing' | 'stable'
 }
 
-interface PricePrediction {
-  symbol: string
-  horizon: '1h' | '4h' | '24h'
-  direction: 'up' | 'down' | 'neutral'
-  confidence: number // 0-100
-  predictedChange: number // percentage
-  timestamp: number
-  modelVersion: string
-}
-
-interface HybridInsight {
-  id: string
-  symbol: string
-  signal: 'bullish' | 'bearish' | 'neutral'
-  confidence: number
-  summary: string
-  mlPrediction?: PricePrediction
-  technicalSignals: TechnicalSignal[]
-  timestamp: number
-}
-
 interface TechnicalSignal {
   indicator: string
   value: number
   signal: 'bullish' | 'bearish' | 'neutral'
 }
 ```
-
-## Machine Learning Architecture
-
-### ML Model Design
-
-The Spectra ML system uses Google's TimesFM foundation model running locally via a Python Flask service. The Node.js backend calls this service for ML predictions and combines them with technical analysis to generate actionable trading recommendations (BUY/SELL/HOLD).
-
-**Model:**
-
-- **TimesFM 2.5** - `google/timesfm-2.5-200m-pytorch`
-  - Zero-shot time series forecasting
-  - Pre-trained on large time series corpus (ICML 2024)
-  - Runs locally (no API costs)
-  - ~500MB model size
-  - Supports 1-day, 7-day, and 30-day prediction horizons
-
-### ML Service Architecture Diagram
-
-```mermaid
-graph TB
-    subgraph "Frontend - React"
-        InsightsUI[Insights Page]
-        HorizonFilter[Horizon Filter<br/>1d / 7d / 30d]
-        InsightsStore[insightsStore]
-    end
-
-    subgraph "Node.js Backend :3001"
-        subgraph "Real-Time Data Pipeline"
-            CoinbaseWS[Coinbase WebSocket] --> WSManager[WebSocketManager]
-            WSManager --> Relay[MarketDataRelay]
-            Relay --> PriceStore[(Price History Store<br/>200 prices per symbol)]
-            Relay --> FrontendWS[Frontend WebSocket :3002]
-        end
-        
-        subgraph "AI Engine"
-            InsightsAPI[/api/insights/:symbol] --> AIEngine[AIEngine]
-            AIEngine --> TechIndicators[Technical Indicators<br/>RSI, SMA, Volatility, Volume]
-            AIEngine --> MLClient[MLInferenceService]
-            TechIndicators --> Combiner[Signal Combiner<br/>Weighted Voting]
-            MLClient --> Combiner
-            Combiner --> Recommendation[BUY / SELL / HOLD<br/>with Confidence %]
-        end
-    end
-
-    subgraph "Python ML Service :5001"
-        MLClient -->|HTTP POST /predict| Flask[Flask Server]
-        Flask --> ModelLoader[Model Loader]
-        ModelLoader --> TimesFM[TimesFM 2.5<br/>200M Parameters]
-        TimesFM --> Forecast[Point Forecast +<br/>Quantile Forecast]
-        Forecast --> Confidence[Confidence Calculator]
-        Confidence --> Response[JSON Response]
-    end
-
-    InsightsUI --> HorizonFilter
-    HorizonFilter --> InsightsStore
-    InsightsStore -->|fetch| InsightsAPI
-    FrontendWS --> InsightsStore
-    Response -->|HTTP Response| MLClient
-```
-
-### ML Service Data Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Frontend
-    participant Backend
-    participant MLService
-    participant TimesFM
-
-    User->>Frontend: Select prediction horizon (1d/7d/30d)
-    Frontend->>Backend: GET /api/insights/BTC?horizon=7
-    Backend->>Backend: Get price history (200 data points)
-    Backend->>Backend: Calculate technical indicators
-    Backend->>MLService: POST /predict {prices, horizon: 7}
-    MLService->>TimesFM: model.forecast(horizon=7, inputs=[prices])
-    TimesFM-->>MLService: point_forecast, quantile_forecast
-    MLService->>MLService: Calculate direction & confidence
-    MLService-->>Backend: {direction, confidence, predicted_change, forecast}
-    Backend->>Backend: Combine ML + Technical signals
-    Backend->>Backend: Generate BUY/SELL/HOLD recommendation
-    Backend-->>Frontend: {insight with recommendation}
-    Frontend-->>User: Display actionable insight
-```
-
-**Python ML Service (`backend/ml-service/`):**
-
-```python
-# server.py - Flask service running TimesFM locally
-import timesfm
-from flask import Flask, request, jsonify
-
-model = timesfm.TimesFM_2p5_200M_torch.from_pretrained(
-    "google/timesfm-2.5-200m-pytorch"
-)
-model.compile(timesfm.ForecastConfig(
-    max_context=1024,
-    max_horizon=256,
-    normalize_inputs=True
-))
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    data = request.json
-    prices = np.array(data['prices'])
-    horizon = data['horizon']
-    
-    point_forecast, quantile_forecast = model.forecast(
-        horizon=horizon,
-        inputs=[prices]
-    )
-    
-    return jsonify({
-        'direction': 'up' if forecast[-1] > prices[-1] else 'down',
-        'confidence': calculate_confidence(quantile_forecast),
-        'forecast': forecast.tolist()
-    })
-```
-
-**Node.js ML Client:**
-
-```typescript
-// backend/src/ml/MLInferenceService.ts
-class MLInferenceService {
-  private mlServiceUrl = process.env.ML_SERVICE_URL || 'http://localhost:5001'
-  
-  async predict(symbol: string, prices: number[], horizon: number): Promise<PricePrediction | null> {
-    const response = await fetch(`${this.mlServiceUrl}/predict`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol, prices, horizon })
-    })
-    return response.json()
-  }
-}
-```
-
-**Hybrid Signal Generation:**
-
-The AIEngine combines ML predictions with technical analysis:
-
-```typescript
-// backend/src/services/AIEngine.ts
-async function generateInsights(symbol: string, marketData: MarketData): Promise<MarketInsight[]> {
-  // Calculate technical indicators
-  const rsi = calculateRSI(marketData.priceHistory)
-  const smaCrossover = detectSMACrossover(marketData.priceHistory)
-  const volatility = calculateVolatility(marketData.priceHistory)
-  
-  // Get ML prediction (if service available)
-  const mlPrediction = await mlInferenceService.predict(symbol, marketData.priceHistory, 7)
-  
-  // Generate insights combining both signals
-  const insights: MarketInsight[] = []
-  
-  if (mlPrediction && mlPrediction.confidence >= 60) {
-    insights.push({
-      symbol,
-      signal: mlPrediction.direction === 'up' ? 'bullish' : 'bearish',
-      confidence: mlPrediction.confidence,
-      summary: `AI predicts ${symbol} will ${mlPrediction.direction}...`,
-      mlPrediction,
-      indicators: { rsi, volatility }
-    })
-  }
-  
-  // Add technical analysis insights (RSI, SMA crossover, volume)
-  // ...
-  
-  return insights
-}
-    
-    // Run TimesFM prediction
-    const timesfmResult = await this.timesfmPipeline(timeSeriesInput, {
-      prediction_length: this.horizonToDays(horizon)
-    })
-    
-    // Calculate direction and confidence
-    const prediction = this.processPrediction(timesfmResult, features)
-    
-    // Cache result
-    this.cacheResult(symbol, horizon, prediction)
-    
-    return prediction
-  }
-  
-  private processPrediction(
-    modelOutput: any,
-    features: FeatureSet
-  ): PricePrediction {
-    const predictedPrices = modelOutput.predictions
-    const currentPrice = features.priceHistory[features.priceHistory.length - 1]
-    const predictedPrice = predictedPrices[predictedPrices.length - 1]
-    
-    const percentChange = ((predictedPrice - currentPrice) / currentPrice) * 100
-    const direction = percentChange > 1 ? 'up' : percentChange < -1 ? 'down' : 'neutral'
-    
-    // Confidence based on model certainty and technical alignment
-    const confidence = this.calculateConfidence(modelOutput, features, direction)
-    
-    return {
-      symbol: features.symbol,
-      direction,
-      confidence,
-      predictedChange: percentChange,
-      predictedPrice,
-      horizon: this.horizon,
-      timestamp: Date.now(),
-      modelVersion: 'timesfm-2.0'
-    }
-  }
-}
-```
-
-**Hybrid Signal Generation:**
-
-```typescript
-class HybridSignalGenerator {
-  private mlService: MLInferenceService
-  private technicalAnalyzer: TechnicalIndicators
-  
-  async generateHybridInsight(
-    symbol: string,
-    marketData: MarketData
-  ): Promise<HybridInsight> {
-    // Get ML prediction (with fallback)
-    let mlPrediction: PricePrediction | null = null
-    try {
-      mlPrediction = await this.mlService.predict(symbol, '1d')
-    } catch (error) {
-      console.warn(`ML prediction failed for ${symbol}, using technical only`)
-    }
-    
-    // Get technical signals
-    const technicalSignals = this.technicalAnalyzer.analyze(marketData)
-    
-    // Combine signals with weighted voting
-    const combinedSignal = this.combineSignals(mlPrediction, technicalSignals)
-    
-    return {
-      id: generateId(),
-      symbol,
-      signal: combinedSignal.direction,
-      confidence: combinedSignal.confidence,
-      summary: this.generateSummary(mlPrediction, technicalSignals),
-      mlPrediction,
-      technicalSignals,
-      timestamp: Date.now()
-    }
-  }
-  
-  private combineSignals(
-    ml: PricePrediction | null,
-    technical: TechnicalSignal[]
-  ): CombinedSignal {
-    // If ML available and confident, use 60/40 weighting
-    // Otherwise, use technical analysis only
-    const mlWeight = ml && ml.confidence > 60 ? 0.6 : 0
-    const techWeight = mlWeight > 0 ? 0.4 : 1.0
-    
-    // Calculate technical consensus
-    const techSignal = this.calculateTechnicalConsensus(technical)
-    
-    if (mlWeight === 0) {
-      return techSignal
-    }
-    
-    // Weighted combination
-    const mlScore = this.signalToScore(ml!.direction) * mlWeight
-    const techScore = this.signalToScore(techSignal.direction) * techWeight
-    const combinedScore = mlScore + techScore
-    
-    return {
-      direction: this.scoreToSignal(combinedScore),
-      confidence: (ml!.confidence * mlWeight) + (techSignal.confidence * techWeight)
-    }
-  }
-}
-```
-
-**Daily Update Workflow:**
-
-```typescript
-class DailyUpdateService {
-  private featureExtractor: FeatureExtractor
-  private mlService: MLInferenceService
-  private symbols: string[] = ['BTC', 'ETH', 'SOL', 'ADA', ...]
-  
-  // Called daily at market close (or on WebSocket daily candle)
-  async updatePredictions(): Promise<void> {
-    for (const symbol of this.symbols) {
-      // Update feature buffer with latest daily data
-      const dailyData = await this.fetchDailyClose(symbol)
-      this.featureExtractor.updateBuffer(
-        symbol,
-        dailyData.close,
-        dailyData.volume
-      )
-      
-      // Generate new predictions
-      const prediction = await this.mlService.predict(symbol, '1d')
-      
-      // Store prediction for API access
-      await this.storePrediction(symbol, prediction)
-      
-      // Broadcast to connected clients
-      this.broadcastPrediction(symbol, prediction)
-    }
-  }
-  
-  // Called on each WebSocket ticker update for real-time adjustments
-  onTickerUpdate(symbol: string, price: number, volume: number): void {
-    // Update intraday buffer (not used for daily model, but for technical indicators)
-    this.featureExtractor.updateIntradayBuffer(symbol, price, volume)
-  }
-}
-```
-
-**Model Storage and Caching:**
-
-```
-backend/
-├── ml/
-│   ├── cache/
-│   │   └── predictions/     # Cached predictions (60s TTL)
-│   ├── models/
-│   │   └── .gitkeep         # Models downloaded from HuggingFace at runtime
-│   ├── FeatureExtractor.ts
-│   ├── MLInferenceService.ts
-│   ├── HybridSignalGenerator.ts
-│   ├── DailyUpdateService.ts
-│   └── types.ts
-```
-
-**Performance Considerations:**
-
-- Models are loaded once at server startup
-- Predictions cached for 60 seconds to reduce inference overhead
-- Feature extraction uses rolling buffers to avoid recalculation
-- Batch predictions for multiple symbols when possible
-- Fallback to technical analysis if ML inference fails
 
 **Coinbase API Client:**
 
@@ -904,8 +637,8 @@ interface Cryptocurrency {
 ```typescript
 interface PriceHistory {
   symbol: string
-  interval: '1m' | '5m' | '15m' | '1h' | '1d'
-  candles: Candle[]
+  interval: '1d' // fixed 1-year window from CoinGecko
+  candles: Candle[] // exactly 365 entries, newest last
 }
 
 interface Candle {
@@ -1496,9 +1229,9 @@ app.use('/api/', apiLimiter)
 **Data Retention Policy:**
 
 - Trade history: Minimum 90 days retention (Requirement 14.5)
-- Market data: Keep 30 days of historical candles for charting
+- Market data: Keep 365 days of CoinGecko OHLC candles cached for charting
 - Alert history: Keep triggered alerts for 30 days
-- Portfolio snapshots: Daily snapshots for 90 days for historical charts
+- Portfolio history: Reconstruct the last 30 days from trade net flows (snapshots optional)
 - Implement automated cleanup jobs to remove expired data
 
 ## Data Persistence Strategy

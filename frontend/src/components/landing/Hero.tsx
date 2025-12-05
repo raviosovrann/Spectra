@@ -110,8 +110,8 @@ export default function Hero() {
             <a href="#features" className="hidden md:block text-dark-300 hover:text-white transition-colors font-medium">
               Features
             </a>
-            <a href="#insights" className="hidden md:block text-dark-300 hover:text-white transition-colors font-medium">
-              AI Insights
+            <a href="#features" className="hidden md:block text-dark-300 hover:text-white transition-colors font-medium">
+              Insights
             </a>
             <button 
               onClick={() => navigate('/login')}
@@ -138,7 +138,7 @@ export default function Hero() {
               className="mb-6 inline-flex items-center gap-2 rounded-full bg-primary-500/10 px-4 py-2 text-sm text-primary-400"
             >
               <TrendingUp className="h-4 w-4" />
-              <span>AI-Powered Trading Intelligence</span>
+              <span>Real-Time Trading Intelligence</span>
             </motion.div>
 
             <motion.h1
@@ -160,7 +160,7 @@ export default function Hero() {
               transition={{ delay: 0.3 }}
               className="mb-8 text-lg text-dark-300 lg:text-xl"
             >
-              Real-time market insights powered by AI. Make smarter trading decisions with
+              Real-time market insights powered by technical analysis. Make smarter trading decisions with
               intelligent analytics, live heatmaps, and instant alerts.
             </motion.p>
 
@@ -235,11 +235,10 @@ export default function Hero() {
                   <div className="rounded-xl border border-primary-500/20 bg-primary-500/5 px-4 py-3 backdrop-blur">
                     <div className="flex items-center gap-2 text-primary-200">
                       <LineChart className="h-4 w-4" />
-                      <span className="text-xs font-semibold uppercase tracking-wide">Live Signal</span>
+                      <span className="text-xs font-semibold uppercase tracking-wide">Live Data</span>
                     </div>
                     <div className="mt-2 flex items-end gap-2">
-                      <span className="text-2xl font-semibold text-white">98%</span>
-                      <span className="text-xs text-primary-200">accuracy</span>
+                      <span className="text-2xl font-semibold text-white">Real-Time</span>
                     </div>
                   </div>
                   <div className="rounded-xl border border-success-500/20 bg-success-500/5 px-4 py-3 backdrop-blur">
@@ -402,7 +401,7 @@ export default function Hero() {
                   >
                     <LineChart className="h-4 w-4 text-primary-300" />
                     <div>
-                      <div className="text-[11px] uppercase tracking-wide text-dark-400">AI Signal</div>
+                      <div className="text-[11px] uppercase tracking-wide text-dark-400">Market Signal</div>
                       <div className="text-sm font-semibold text-white">Momentum Rising</div>
                     </div>
                   </motion.div>
@@ -492,7 +491,7 @@ export default function Hero() {
                 </div>
               </div>
 
-              {/* Floating AI Badge */}
+              {/* Floating Live Badge */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -500,13 +499,8 @@ export default function Hero() {
                 className="absolute -right-4 -top-4 rounded-2xl bg-gradient-to-br from-success-500 to-success-600 p-4 shadow-xl"
               >
                 <div className="flex items-center gap-2">
-                  <svg className="h-5 w-5 text-white" viewBox="0 0 46 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M0 33L4.60606 25H12.2448C17.2569 25 21.4947 28.7103 22.1571 33.6784L23 40H13L11.5585 36.6365C10.613 34.4304 8.44379 33 6.04362 33H0Z" fill="currentColor" />
-                    <path d="M46 33L41.3939 25H33.7552C28.7431 25 24.5053 28.7103 23.8429 33.6784L23 40H33L34.4415 36.6365C35.387 34.4304 37.5562 33 39.9564 33H46Z" fill="currentColor" />
-                    <path d="M4.60606 25L18.9999 0H23L22.6032 9.52405C22.2608 17.7406 15.7455 24.3596 7.53537 24.8316L4.60606 25Z" fill="currentColor" />
-                    <path d="M41.3939 25L27.0001 0H23L23.3968 9.52405C23.7392 17.7406 30.2545 24.3596 38.4646 24.8316L41.3939 25Z" fill="currentColor" />
-                  </svg>
-                  <div className="text-sm font-semibold text-white">AI Active</div>
+                  <Activity className="h-5 w-5 text-white" />
+                  <div className="text-sm font-semibold text-white">Live Data</div>
                 </div>
               </motion.div>
             </div>

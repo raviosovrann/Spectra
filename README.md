@@ -81,6 +81,53 @@ npm run dev:frontend
 npm run dev:backend
 ```
 
+### Quick sharing with LocalTunnel (no deploy)
+
+Use LocalTunnel to expose your local dev servers when you need a temporary public URL.
+
+1) Install (optional): `npm install -g localtunnel` (or use `npx localtunnel ...`).
+
+2) Pick tunnel subdomains (optional but easier to remember):
+	- API: `npx localtunnel --port 3001 --subdomain spectra-api`
+	- WebSocket: `npx localtunnel --port 3002 --subdomain spectra-ws`
+	- Frontend: `npx localtunnel --port 5173 --subdomain spectra-app`
+
+3) Start the backend with CORS pointed at your frontend tunnel:
+
+```bash
+# from repo root
+FRONTEND_URL=https://spectra-app.loca.lt PORT=3001 WS_PORT=3002 \
+npm run dev:backend
+```
+
+4) Start the frontend with backend URLs set to the tunnels and bind to all hosts so LocalTunnel can reach it:
+
+```bash
+# from repo root
+VITE_BACKEND_API_URL=https://spectra-api.loca.lt \
+VITE_BACKEND_WS_URL=wss://spectra-ws.loca.lt \
+npm run dev --workspace=frontend -- --host --port 5173
+```
+
+5) Expose the frontend dev server:
+
+```bash
+npx localtunnel --port 5173 --subdomain spectra-app
+```
+
+6) Share the frontend tunnel URL (e.g., `https://spectra-app.loca.lt`). The app will call the tunneled API/WS endpoints.
+
+Notes:
+- Keep three tunnels running (API 3001, WS 3002, frontend 5173). If a tunnel drops, restart it; the URL may change unless you re-request the same subdomain.
+- If you change the frontend tunnel URL, update `FRONTEND_URL` for the backend to keep CORS happy.
+- LocalTunnel is best-effort; for more stability, use ngrok or a quick cloud deploy (see below).
+
+### If LocalTunnel is flaky: fastest cloud deploy
+
+- **Frontend (Vercel):** Import the repo, set root to `frontend/`, build command `npm install && npm run build`, output dir `dist`. Set env `VITE_BACKEND_API_URL` and `VITE_BACKEND_WS_URL` to your backend deployment URLs.
+- **Backend (Railway/Render/Fly):** Deploy `backend/` with start command `npm run start --workspace=backend` (after `npm run build --workspace=backend`). Set envs `PORT=3001`, `WS_PORT=3002`, `FRONTEND_URL=<your Vercel URL>`, `JWT_SECRET`, DB creds, and Coinbase keys. Ensure WebSocket (3002) is exposed.
+- Update frontend envs to point at the backend host and redeploy frontend. This two-step deploy is typically <15 minutes on Vercel + Railway.
+
 ### Building for Production
 
 ```bash
@@ -135,10 +182,11 @@ For detailed testing documentation, see [docs/TESTING.md](docs/TESTING.md)
 
 - `PORT` - REST API server port
 - `WS_PORT` - WebSocket server port
-- `COINBASE_API_KEY` - Coinbase API key
-- `COINBASE_API_SECRET` - Coinbase API secret
+- `COINBASE_API_KEY_NAME` - Coinbase Cloud API key name (kid)
+- `COINBASE_PRIVATE_KEY` - PEM-formatted private key for the Coinbase API key
 - `FRONTEND_URL` - Frontend URL for CORS
 - `JWT_SECRET` - JWT secret for authentication
+- Legacy variables `COINBASE_API_KEY` / `COINBASE_API_SECRET` are also accepted for backwards compatibility
 - See `backend/.env.example` for full list
 
 ## Features

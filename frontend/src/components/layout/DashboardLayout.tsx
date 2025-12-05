@@ -5,13 +5,15 @@ import { useState, useRef, useEffect } from 'react'
 import { useUserStore } from '../../stores/userStore'
 import { useAuth } from '../../hooks/useAuth'
 import { useWebSocket } from '../../hooks/useWebSocket'
+import { useNotificationStore } from '../../stores/notificationStore'
+import { useAlertsStore } from '../../stores/alertsStore'
+import NotificationCenter from '../NotificationCenter'
 import Loader from '../Loader'
 
 // Page icons
 import investingIcon from '../../assets/investing-page.svg'
 import tradingIcon from '../../assets/trading-page.svg'
 import portfolioIcon from '../../assets/portfolio-page.svg'
-import insightsIcon from '../../assets/insights-page.svg'
 import alertsIcon from '../../assets/alerts-page.svg'
 import historyIcon from '../../assets/history-page.svg'
 
@@ -19,7 +21,6 @@ const tabs = [
   { id: 'investing', label: 'Investing', path: '/dashboard', iconSrc: investingIcon },
   { id: 'trading', label: 'Trading', path: '/dashboard/trading', iconSrc: tradingIcon },
   { id: 'portfolio', label: 'Portfolio', path: '/dashboard/portfolio', iconSrc: portfolioIcon },
-  { id: 'insights', label: 'Insights', path: '/dashboard/insights', iconSrc: insightsIcon },
   { id: 'alerts', label: 'Alerts', path: '/dashboard/alerts', iconSrc: alertsIcon },
   { id: 'history', label: 'History', path: '/dashboard/history', iconSrc: historyIcon },
 ]
@@ -29,7 +30,9 @@ export default function DashboardLayout() {
   const location = useLocation()
   const { theme, setTheme } = useUserStore()
   const { logout, user } = useAuth()
-  const { status: wsStatus } = useWebSocket()
+  const { status: wsStatus, onMessage } = useWebSocket()
+  const { push } = useNotificationStore()
+  const { triggerAlert } = useAlertsStore()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const accountMenuRef = useRef<HTMLDivElement>(null)
@@ -78,6 +81,29 @@ export default function DashboardLayout() {
     logout()
     navigate('/login')
   }
+
+  // Listen for alert trigger events from WebSocket
+  useEffect(() => {
+    const unsubscribe = onMessage('alert_triggered', (data) => {
+      const payload = data as { alertId?: string; symbol?: string; price?: number; triggeredAt?: number }
+      if (payload?.alertId) {
+        triggerAlert(payload.alertId)
+      }
+
+      const priceDisplay = payload?.price ? `$${Number(payload.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''
+      const symbol = payload?.symbol || 'Alert'
+
+      push({
+        title: `${symbol} alert triggered`,
+        message: priceDisplay ? `${symbol} crossed ${priceDisplay}` : 'Price condition met',
+        variant: 'warning',
+      })
+    })
+
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
+  }, [onMessage, push, triggerAlert])
 
   const getActiveTab = () => {
     const path = location.pathname
@@ -140,6 +166,7 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950">
+      <NotificationCenter />
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-dark-800 bg-dark-900/95 backdrop-blur-sm">
         <div className="container mx-auto px-4">

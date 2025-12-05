@@ -1,189 +1,222 @@
-import { useMemo } from 'react'
-import {
-  ResponsiveContainer,
-  ComposedChart,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  Bar,
-} from 'recharts'
+/**
+ * CandlestickChart Component
+ * 
+ * Professional candlestick chart using lightweight-charts library.
+ * Provides interactive zooming, panning, and proper OHLC rendering.
+ */
 
-interface CandleData {
-  time: string
-  open: number
-  high: number
-  low: number
-  close: number
-  volume: number
-}
+import { useEffect, useRef, useMemo } from 'react'
+import { createChart, ColorType, CrosshairMode, IChartApi, ISeriesApi, Time, CandlestickSeries } from 'lightweight-charts'
+import type { CandleData as ExternalCandleData } from '../../hooks/useInstrumentData'
 
 interface CandlestickChartProps {
-  data?: CandleData[]
-  height?: number
+  symbol?: string
+  interval?: string
+  height?: number | string
+  candles?: ExternalCandleData[]
+  currentPrice?: number
+  isLoading?: boolean
+  onIntervalChange?: (interval: string) => void
 }
 
-// Generate mock candlestick data
-const generateMockData = (): CandleData[] => {
-  const data: CandleData[] = []
-  let basePrice = 43000
-  const now = Date.now()
+export default function CandlestickChart({ 
+  symbol: _symbol, 
+  interval: _interval, 
+  height = 400,
+  candles: externalCandles,
+  currentPrice: externalCurrentPrice,
+  isLoading,
+}: CandlestickChartProps) {
+  const chartContainerRef = useRef<HTMLDivElement>(null)
+  const chartRef = useRef<IChartApi | null>(null)
+  const candlestickSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null)
 
-  for (let i = 60; i >= 0; i--) {
-    const time = new Date(now - i * 60 * 60 * 1000)
-    const open = basePrice + (Math.random() - 0.5) * 1000
-    const close = open + (Math.random() - 0.5) * 2000
-    const high = Math.max(open, close) + Math.random() * 500
-    const low = Math.min(open, close) - Math.random() * 500
-    const volume = Math.random() * 1000000
+  // Prepare data for lightweight-charts
+  const { candleData } = useMemo(() => {
+    if (!externalCandles || externalCandles.length === 0) {
+      return { candleData: [] }
+    }
 
-    data.push({
-      time: time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      open,
-      high,
-      low,
-      close,
-      volume,
+    // Assume backend sends sorted data to improve performance
+    // const sortedCandles = [...externalCandles].sort((a, b) => a.timestamp - b.timestamp)
+
+    const cData = externalCandles.map(candle => {
+      // Convert timestamp to seconds if it's in milliseconds
+      const time = (candle.timestamp > 1e12 ? Math.floor(candle.timestamp / 1000) : candle.timestamp) as Time
+      return {
+        time,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+      }
     })
 
-    basePrice = close
-  }
+    return { candleData: cData }
+  }, [externalCandles])
 
-  return data
-}
+  // Update last candle with current price if available
+  const { finalCandleData } = useMemo(() => {
+    if (candleData.length === 0) return { finalCandleData: [] }
+    if (!externalCurrentPrice || externalCurrentPrice <= 0) return { finalCandleData: candleData }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomCandlestick = (props: any) => {
-  const { x, width, open, close, high, low } = props
-  const isGreen = close > open
-  const color = isGreen ? '#22c55e' : '#ef4444'
-  const bodyHeight = Math.abs(close - open)
-  const bodyY = Math.min(close, open)
+    const lastCandle = candleData[candleData.length - 1]
+    
+    // Only update if the current price is different or we want to show live movement
+    // For a real app, we might want to check if the current time is still within the last candle's interval
+    // But for simplicity, we'll just update the close price of the last candle
+    
+    const updatedLastCandle = {
+      ...lastCandle,
+      close: externalCurrentPrice,
+      high: Math.max(lastCandle.high, externalCurrentPrice),
+      low: Math.min(lastCandle.low, externalCurrentPrice),
+    }
+
+    const newCandleData = [...candleData]
+    newCandleData[newCandleData.length - 1] = updatedLastCandle
+
+    return { finalCandleData: newCandleData }
+  }, [candleData, externalCurrentPrice])
+
+  // Initialize Chart
+  useEffect(() => {
+    if (!chartContainerRef.current) return
+
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: '#131722' }, // Exact TradingView Dark Theme background
+        textColor: '#d1d4dc',
+      },
+      grid: {
+        vertLines: { color: '#2a2e39' }, // Exact TradingView grid color
+        horzLines: { color: '#2a2e39' },
+      },
+      width: chartContainerRef.current.clientWidth,
+      height: typeof height === 'number' ? height : 400,
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+        borderColor: '#2a2e39',
+      },
+      rightPriceScale: {
+        borderColor: '#2a2e39',
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1,
+        },
+      },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: {
+          width: 1,
+          color: '#758696',
+          style: 3,
+          labelBackgroundColor: '#758696',
+        },
+        horzLine: {
+          width: 1,
+          color: '#758696',
+          style: 3,
+          labelBackgroundColor: '#758696',
+        },
+      },
+    })
+
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
+      upColor: '#089981', // TradingView Green
+      downColor: '#f23645', // TradingView Red
+      borderVisible: false,
+      wickUpColor: '#089981',
+      wickDownColor: '#f23645',
+    })
+
+    chartRef.current = chart
+    candlestickSeriesRef.current = candlestickSeries
+
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        chart.applyOptions({ width: chartContainerRef.current.clientWidth })
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      chart.remove()
+    }
+  }, [height])
+
+  // Update Data
+  useEffect(() => {
+    if (candlestickSeriesRef.current) {
+      candlestickSeriesRef.current.setData(finalCandleData)
+    }
+  }, [finalCandleData])
+
+  // Handle initial view and resets when symbol/interval changes
+  const prevSymbolRef = useRef<string | undefined>(undefined)
+  const prevIntervalRef = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (chartRef.current && externalCandles && externalCandles.length > 0) {
+      const hasSymbolChanged = prevSymbolRef.current !== _symbol
+      const hasIntervalChanged = prevIntervalRef.current !== _interval
+      
+      if (hasSymbolChanged || hasIntervalChanged) {
+        // If symbol or interval changed, reset view
+        // If we have a lot of data, don't fit content (which squeezes everything), 
+        // but show the most recent candles
+        if (externalCandles.length > 1000) {
+          chartRef.current.timeScale().setVisibleLogicalRange({
+            from: externalCandles.length - 200,
+            to: externalCandles.length,
+          })
+        } else {
+          chartRef.current.timeScale().fitContent()
+        }
+        prevSymbolRef.current = _symbol
+        prevIntervalRef.current = _interval
+      }
+    }
+  }, [externalCandles, _symbol, _interval])
+
+  // Handle dynamic resizing if container size changes
+  useEffect(() => {
+    if (!chartRef.current || !chartContainerRef.current) return
+    
+    const resizeObserver = new ResizeObserver(entries => {
+      if (entries.length === 0 || !entries[0].contentRect) return
+      const { width, height: newHeight } = entries[0].contentRect
+      chartRef.current?.applyOptions({ 
+        width, 
+        height: typeof height === 'number' ? height : newHeight 
+      })
+    })
+
+    resizeObserver.observe(chartContainerRef.current)
+    return () => resizeObserver.disconnect()
+  }, [height])
 
   return (
-    <g>
-      {/* Wick (high-low line) */}
-      <line
-        x1={x + width / 2}
-        y1={high}
-        x2={x + width / 2}
-        y2={low}
-        stroke={color}
-        strokeWidth={1}
+    <div className="relative w-full" style={{ height: typeof height === 'string' ? height : `${height}px` }}>
+      <div 
+        ref={chartContainerRef} 
+        className="w-full h-full relative overflow-hidden rounded-lg border border-dark-700"
       />
-      {/* Body (open-close rectangle) */}
-      <rect
-        x={x}
-        y={bodyY}
-        width={width}
-        height={bodyHeight || 1}
-        fill={color}
-        stroke={color}
-        strokeWidth={1}
-      />
-    </g>
-  )
-}
+      
+      {((!externalCandles || externalCandles.length === 0) && isLoading) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-dark-900/80 z-10 rounded-lg">
+          <div className="text-dark-400">Loading chart data...</div>
+        </div>
+      )}
 
-export default function CandlestickChart({ data, height = 400 }: CandlestickChartProps) {
-  const chartData = useMemo(() => data || generateMockData(), [data])
-
-  // Transform data for candlestick rendering
-  const transformedData = useMemo(() => {
-    return chartData.map((candle, index) => ({
-      ...candle,
-      index,
-      // Calculate Y positions for custom candlestick
-      openY: candle.open,
-      closeY: candle.close,
-      highY: candle.high,
-      lowY: candle.low,
-    }))
-  }, [chartData])
-
-  const minPrice = Math.min(...chartData.map((d) => d.low))
-  const maxPrice = Math.max(...chartData.map((d) => d.high))
-  const priceRange = maxPrice - minPrice
-  const yDomain = [minPrice - priceRange * 0.1, maxPrice + priceRange * 0.1]
-
-  return (
-    <div className="w-full">
-      <ResponsiveContainer width="100%" height={height}>
-        <ComposedChart data={transformedData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.3} />
-              <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.05} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-          <XAxis
-            dataKey="time"
-            stroke="#64748b"
-            tick={{ fill: '#94a3b8', fontSize: 12 }}
-            tickLine={{ stroke: '#475569' }}
-            interval="preserveStartEnd"
-          />
-          <YAxis
-            yAxisId="price"
-            domain={yDomain}
-            stroke="#64748b"
-            tick={{ fill: '#94a3b8', fontSize: 12 }}
-            tickLine={{ stroke: '#475569' }}
-            tickFormatter={(value) => `$${value.toLocaleString()}`}
-          />
-          <YAxis
-            yAxisId="volume"
-            orientation="right"
-            stroke="#64748b"
-            tick={{ fill: '#94a3b8', fontSize: 12 }}
-            tickLine={{ stroke: '#475569' }}
-            tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
-              borderRadius: '12px',
-              padding: '12px',
-            }}
-            labelStyle={{ color: '#e2e8f0', fontWeight: 600, marginBottom: '8px' }}
-            itemStyle={{ color: '#cbd5e1', fontSize: '13px' }}
-            formatter={(value: number, name: string) => {
-              if (name === 'volume') {
-                return [`${(value / 1000).toFixed(0)}K`, 'Volume']
-              }
-              return [`$${value.toLocaleString()}`, name.charAt(0).toUpperCase() + name.slice(1)]
-            }}
-          />
-          {/* Volume bars */}
-          <Bar
-            yAxisId="volume"
-            dataKey="volume"
-            fill="url(#volumeGradient)"
-            opacity={0.5}
-            radius={[4, 4, 0, 0]}
-          />
-          {/* Candlesticks using custom shape */}
-          <Bar
-            yAxisId="price"
-            dataKey="closeY"
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            shape={(props: any) => {
-              const candle = transformedData[props.index]
-              return (
-                <CustomCandlestick
-                  {...props}
-                  open={candle.openY}
-                  close={candle.closeY}
-                  high={candle.highY}
-                  low={candle.lowY}
-                />
-              )
-            }}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+      {(!externalCandles || externalCandles.length === 0) && !isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-dark-900/80 z-10 rounded-lg">
+          <div className="text-dark-400">No data available</div>
+        </div>
+      )}
     </div>
   )
 }

@@ -3,7 +3,6 @@ import Features from './landing/Features'
 import CryptoShowcase from './landing/CryptoShowcase'
 import AIInsights from './landing/AIInsights'
 import CallToAction from './landing/CallToAction'
-import Footer from './landing/Footer'
 
 export default function LandingPage() {
   return (
@@ -13,7 +12,6 @@ export default function LandingPage() {
       <CryptoShowcase />
       <AIInsights />
       <CallToAction />
-      <Footer />
     </div>
   )
 }

@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion'
 import { Wallet, RefreshCw, AlertCircle, ExternalLink } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { useAuth } from '../../hooks/useAuth'
+import TransferModal from './TransferModal'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -24,12 +25,16 @@ interface CoinbaseAccount {
 
 export default function WalletSection() {
   const { token, user } = useAuth()
+  const hasCredentials = Boolean(user?.hasCoinbaseKeys)
   const [accounts, setAccounts] = useState<CoinbaseAccount[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
+  const [transferMode, setTransferMode] = useState<'deposit' | 'withdraw'>('deposit')
 
-  const fetchAccounts = async () => {
-    if (!user?.hasCoinbaseKeys) {
+  const fetchAccounts = useCallback(async () => {
+    if (!hasCredentials) {
+      setAccounts([])
       return
     }
 
@@ -52,16 +57,16 @@ export default function WalletSection() {
     } finally {
       setIsLoading(false)
     }
+  }, [hasCredentials, token])
+
+  const openTransferModal = (mode: 'deposit' | 'withdraw') => {
+    setTransferMode(mode)
+    setIsTransferModalOpen(true)
   }
 
   useEffect(() => {
-    if (!user?.hasCoinbaseKeys) {
-      setAccounts([])
-      return
-    }
     fetchAccounts()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.hasCoinbaseKeys])
+  }, [fetchAccounts])
 
   const formatBalance = (value: string) => {
     const num = parseFloat(value)
@@ -88,15 +93,29 @@ export default function WalletSection() {
           </div>
         </div>
 
-        {user?.hasCoinbaseKeys && (
-          <button
-            onClick={fetchAccounts}
-            disabled={isLoading}
-            className="flex items-center gap-2 rounded-lg bg-dark-700 border border-dark-600 px-4 py-2 text-sm font-medium text-white hover:bg-dark-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+        {hasCredentials && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openTransferModal('deposit')}
+              className="rounded-lg bg-primary-500/90 hover:bg-primary-500 text-white text-sm font-semibold px-4 py-2 transition-colors shadow-lg shadow-primary-500/20"
+            >
+              Deposit
+            </button>
+            <button
+              onClick={() => openTransferModal('withdraw')}
+              className="rounded-lg bg-dark-700 hover:bg-dark-600 text-white text-sm font-semibold px-4 py-2 border border-dark-600 transition-colors"
+            >
+              Withdraw
+            </button>
+            <button
+              onClick={fetchAccounts}
+              disabled={isLoading}
+              className="flex items-center gap-2 rounded-lg bg-dark-700 border border-dark-600 px-3 py-2 text-xs font-semibold text-white hover:bg-dark-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         )}
       </div>
 
@@ -214,7 +233,7 @@ export default function WalletSection() {
       )}
 
       {/* Helpful Information */}
-      {user?.hasCoinbaseKeys && (
+      {hasCredentials && (
         <div className="mt-6 rounded-lg bg-blue-500/10 border border-blue-500/30 p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
@@ -237,6 +256,16 @@ export default function WalletSection() {
             </div>
           </div>
         </div>
+      )}
+
+      {hasCredentials && (
+        <TransferModal
+          isOpen={isTransferModalOpen}
+          mode={transferMode}
+          accounts={accounts}
+          onClose={() => setIsTransferModalOpen(false)}
+          onCompleted={fetchAccounts}
+        />
       )}
     </motion.div>
   )

@@ -2,8 +2,8 @@ import { WebSocketManager } from './WebSocketManager.js'
 import { FrontendWebSocketServer, type BroadcastMessage } from './FrontendWebSocketServer.js'
 import logger from '../utils/logger.js'
 import type { TickerMessage } from '../types/websocket.js'
-import { updatePriceHistory } from '../routes/insights.js'
-import { whaleDetector } from './WhaleDetector.js'
+import { getCandleAggregator, CandleAggregator } from './CandleAggregator.js'
+import { alertService } from './AlertService.js'
 
 interface EnrichedTickerUpdate extends BroadcastMessage {
   type: 'ticker_batch'
@@ -60,6 +60,7 @@ const TOP_CRYPTO_PAIRS = [
 export class MarketDataRelay {
   private coinbaseWs: WebSocketManager
   private frontendWs: FrontendWebSocketServer
+  private candleAggregator: CandleAggregator
   private updateQueue: Map<string, TickerMessage> = new Map()
   private latestTickerState: Map<string, EnrichedTickerUpdate['updates'][0]> = new Map()
   private productInfo: Map<string, ProductInfo> = new Map()
@@ -73,7 +74,10 @@ export class MarketDataRelay {
   ) {
     this.coinbaseWs = coinbaseWs
     this.frontendWs = frontendWs
+    this.candleAggregator = getCandleAggregator()
     this.initializeProductInfo()
+    
+    logger.info('MarketDataRelay initialized with CandleAggregator')
 
     // Register connection handler to send initial state
     this.frontendWs.onConnection((ws) => {
@@ -174,16 +178,6 @@ export class MarketDataRelay {
         }
       })
 
-      // Register whale alert handler to broadcast to frontend
-      whaleDetector.onWhaleAlert((alert) => {
-        this.frontendWs.broadcast({
-          type: 'whale_alert',
-          alert,
-          timestamp: Date.now()
-        })
-        logger.info('Whale alert broadcasted', { symbol: alert.symbol, side: alert.side })
-      })
-
       // Start batching mechanism
       this.startBatching()
 
@@ -200,14 +194,44 @@ export class MarketDataRelay {
   /**
    * Handle incoming ticker messages from Coinbase
    * Detects whale activity from trade size in ticker data
+   * Also feeds the CandleAggregator for real-time candle building
    */
-  private handleTickerMessage(message: TickerMessage): void {
-    // Add to queue for batching
+  private async handleTickerMessage(message: TickerMessage): Promise<void> {
+    // Add to queue for batching (for InvestingView heatmap)
     this.updateQueue.set(message.productId, message)
+
+    // Check alerts and notify user
+    const price = typeof message.price === 'string' ? parseFloat(message.price) : message.price
+    if (!isNaN(price)) {
+      const triggered = await alertService.checkAlerts(message.productId, price)
+      if (triggered.length > 0) {
+        triggered.forEach((alert) => {
+          // Notify the specific user who owns the alert
+          this.frontendWs.sendToUser(alert.user_id, {
+            type: 'alert_triggered',
+            data: {
+              alertId: alert.alert_id,
+              symbol: alert.symbol,
+              price,
+              triggeredAt: Date.now(),
+              condition: alert.condition,
+            },
+          })
+        })
+      }
+    }
+
+    // Feed the CandleAggregator for real-time candle building (for TradingView)
+    this.candleAggregator.processTicker(message)
+
+    // Broadcast individual ticker to subscribed clients (for TradingView real-time updates)
+    const tickerData = this.candleAggregator.getLatestTicker(message.productId.split('-')[0])
+    if (tickerData) {
+      this.frontendWs.broadcastTicker(message.productId, tickerData as unknown as BroadcastMessage)
+    }
 
     // Detect whale activity from last trade size
     // Ticker messages include last_size which is the size of the most recent trade
-    const symbol = message.productId.split('-')[0]
     if (message.price > 0) {
       // Use bestBid/bestAsk spread to estimate trade direction
       // If price is closer to bestAsk, likely a buy; closer to bestBid, likely a sell
@@ -219,8 +243,9 @@ export class MarketDataRelay {
       const volumePerSecond = message.volume24h / 86400 // Average volume per second
       const estimatedTradeSize = volumePerSecond * 10 // Estimate ~10 seconds of volume per tick
       
-      if (estimatedTradeSize > 0) {
-        whaleDetector.processOrder(symbol, side, message.price, estimatedTradeSize)
+      // Log whale activity if trade size is significant (placeholder logic)
+      if (estimatedTradeSize > 100000) { // Example threshold
+        logger.info(`Whale activity detected: ${side} ${estimatedTradeSize} on ${message.productId}`)
       }
     }
   }
@@ -297,14 +322,6 @@ export class MarketDataRelay {
 
     // Format timestamp
     const formattedTimestamp = new Date(ticker.timestamp).toISOString()
-
-    // Feed data to insights service for ML predictions
-    try {
-      updatePriceHistory(symbol, ticker.price, ticker.volume24h)
-    } catch (error) {
-      // Don't let ML errors affect market data relay
-      logger.debug('Failed to update price history', { symbol, error })
-    }
 
     return {
       symbol,

@@ -1,21 +1,20 @@
+import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
-import dotenv from 'dotenv'
 import logger from './utils/logger.js'
 import pool from './database/config.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
 import walletRoutes from './routes/wallet.js'
-import insightsRoutes from './routes/insights.js'
 import marketRoutes from './routes/market.js'
-import { checkMLServiceHealth } from './services/AIEngine.js'
+import ordersRoutes from './routes/orders.js'
+import portfolioRoutes from './routes/portfolio.js'
+import alertsRoutes from './routes/alerts.js'
+import tradesRoutes from './routes/trades.js'
 import { FrontendWebSocketServer } from './services/FrontendWebSocketServer.js'
 import { WebSocketManager } from './services/WebSocketManager.js'
 import { MarketDataRelay } from './services/MarketDataRelay.js'
-
-// Load environment variables
-dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -44,8 +43,11 @@ app.use(cookieParser()) // Parse cookies from requests
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/wallet', walletRoutes)
-app.use('/api/insights', insightsRoutes)
 app.use('/api/market', marketRoutes)
+app.use('/api/orders', ordersRoutes)
+app.use('/api/portfolio', portfolioRoutes)
+app.use('/api/alerts', alertsRoutes)
+app.use('/api/trades', tradesRoutes)
 
 // Health check endpoint with service status checks
 app.get('/health', async (_req, res) => {
@@ -111,15 +113,6 @@ marketDataRelay.start().catch((error) => {
   logger.error('Failed to start market data relay', {
     error: error instanceof Error ? error.message : String(error),
   })
-})
-
-// Check ML service availability
-checkMLServiceHealth().then((available) => {
-  if (available) {
-    logger.info('ML service is available')
-  } else {
-    logger.warn('ML service not available, using technical analysis only')
-  }
 })
 
 // Export services for use in other modules

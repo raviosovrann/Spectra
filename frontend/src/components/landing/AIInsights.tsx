@@ -14,11 +14,11 @@ export default function AIInsights() {
           >
             <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-primary-500/10 px-4 py-2 text-sm text-primary-400">
               <Brain className="h-4 w-4" />
-              <span>Powered by Advanced AI</span>
+              <span>Powered by Technical Analysis</span>
             </div>
 
             <h2 className="mb-6 text-4xl font-bold text-white lg:text-5xl">
-              AI that understands
+              Insights that understand
               <br />
               <span className="bg-gradient-to-r from-primary-400 to-success-400 bg-clip-text text-transparent">
                 the market
@@ -26,7 +26,7 @@ export default function AIInsights() {
             </h2>
 
             <p className="mb-8 text-lg text-dark-300">
-              Our AI analyzes millions of data points in real-time to provide you with actionable
+              Our system analyzes millions of data points in real-time using proven technical indicators to provide you with actionable
               insights and trading opportunities you might have missed.
             </p>
 
@@ -35,17 +35,17 @@ export default function AIInsights() {
                 {
                   icon: Sparkles,
                   title: 'Smart Recommendations',
-                  description: 'Get personalized trading suggestions based on your portfolio and risk profile.',
+                  description: 'Get trading suggestions based on technical indicators and market momentum.',
                 },
                 {
                   icon: Target,
                   title: 'Pattern Recognition',
-                  description: 'Identify market trends and patterns before they become obvious to others.',
+                  description: 'Identify market trends and patterns using RSI, MACD, and moving averages.',
                 },
                 {
                   icon: TrendingUp,
-                  title: 'Predictive Analytics',
-                  description: 'Forecast potential price movements with machine learning models.',
+                  title: 'Technical Analytics',
+                  description: 'Analyze potential price movements with proven technical analysis methods.',
                 },
               ].map((item, index) => (
                 <motion.div
@@ -76,14 +76,14 @@ export default function AIInsights() {
             className="relative"
           >
             <div className="relative rounded-3xl bg-gradient-to-br from-dark-800 to-dark-900 p-8 shadow-2xl border border-dark-700">
-              {/* AI Insight Cards */}
+              {/* Market Insight Cards */}
               <div className="space-y-4">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
                     <Brain className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <div className="text-sm text-dark-400">AI Analysis</div>
+                    <div className="text-sm text-dark-400">Technical Analysis</div>
                     <div className="text-lg font-semibold text-white">Market Insights</div>
                   </div>
                 </div>
@@ -152,8 +152,8 @@ export default function AIInsights() {
                 className="absolute -right-4 -bottom-4 rounded-2xl bg-gradient-to-br from-success-500 to-success-600 p-4 shadow-xl"
               >
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-white">94%</div>
-                  <div className="text-xs text-white/80">Accuracy</div>
+                  <div className="text-2xl font-bold text-white">Real-Time</div>
+                  <div className="text-xs text-white/80">Analysis</div>
                 </div>
               </motion.div>
             </div>
