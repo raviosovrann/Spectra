@@ -2,6 +2,10 @@
 
 AI-powered cryptocurrency trading dashboard with real-time market visualization and intelligent trading insights.
 
+## Demo
+
+https://github.com/user-attachments/assets/Demo.webm
+
 ## Project Structure
 
 ```
